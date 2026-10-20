@@ -1,0 +1,1529 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Mimi &amp; Toto’s Big Adventure｜さんすう大冒険</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=M+PLUS+Rounded+1c:wght@700&display=swap" rel="stylesheet">
+    
+    <style>
+        body, html {
+            height: 100%;
+            min-height: 100%;
+            margin: 0;
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            background-color: #11271e;
+            background-image: none;
+            touch-action: manipulation;
+            user-select: none;
+        }
+        
+        .app-container {
+            width: 100vw;
+            max-width: none;
+            margin: 0;
+            background: #11271e;
+            height: 100vh;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .screen { display: none; height: 100%; min-height: 0; flex-direction: column; }
+        .screen button:focus-visible { outline: 4px solid #fff; outline-offset: 3px; }
+        .screen.active { display: flex; }
+        .title-screen { position: relative; width: 100%; height: 100%; overflow: hidden; background: #10271d; }
+        .title-art { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; max-width: none; object-fit: cover; object-position: center; transform-origin: center center; }
+        .title-screen.active .title-art { animation: forest-scene-drift 18s ease-in-out infinite alternate; }
+        .title-ambience { position: absolute; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; background: radial-gradient(ellipse 42% 28% at 50% 48%, rgba(255,235,157,.16), transparent 76%); animation: forest-glow 5s ease-in-out infinite alternate; }
+        .title-screen.title-art-missing .title-ambience { display: none; }
+        .title-firefly { position: absolute; width: 7px; height: 7px; border-radius: 50%; background: #fff2b8; box-shadow: 0 0 12px 4px rgba(255,231,139,.48); opacity: .72; animation: firefly-drift 6s ease-in-out infinite alternate; }
+        .title-firefly.one { left: 18%; top: 42%; }
+        .title-firefly.two { right: 21%; top: 58%; width: 5px; height: 5px; animation-delay: -2.7s; }
+        .title-screen.using-backup-art .title-heading { display: none; }
+        .title-heading { position: absolute; z-index: 2; top: clamp(20px, 4vh, 56px); left: 5%; right: 5%; text-align: center; color: #fff4d1; pointer-events: none; text-shadow: 0 3px 5px rgba(15,39,29,.85), 0 0 14px rgba(15,39,29,.65); }
+        .title-screen.active .title-heading { animation: title-heading-in .8s ease-out both; }
+        .title-heading h1 { margin: 0; font-family: 'Dela Gothic One', cursive; font-size: clamp(22px, 5.2vw, 48px); line-height: 1.08; letter-spacing: .02em; -webkit-text-stroke: 1px rgba(20,43,31,.8); }
+        .title-heading p { margin: .28em 0 0; font-size: clamp(20px, 4.2vw, 36px); font-weight: 900; line-height: 1.15; -webkit-text-stroke: .6px rgba(20,43,31,.8); }
+        .title-fallback { position: absolute; inset: 0; z-index: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; padding: 2rem; background: #f5e6a8; color: #18352a; text-align: center; }
+        .title-actions { position: absolute; z-index: 3; top: 72%; left: 50%; width: min(720px, 90vw); display: flex; align-items: center; justify-content: center; gap: clamp(10px, 2.5vw, 24px); transform: translate(-50%, -50%); opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .55s ease, visibility .55s ease; }
+        .title-screen.buttons-visible .title-actions { opacity: 1; visibility: visible; pointer-events: auto; }
+        .title-button { min-height: 64px; border: 3px solid rgba(255,255,255,.95); border-radius: 20px; padding: 14px 22px; color: #fff; font-family: inherit; font-size: clamp(17px, 2.5vw, 27px); font-weight: 800; line-height: 1.2; cursor: pointer; box-shadow: 0 8px 22px rgba(0,0,0,.35); text-shadow: 0 2px 3px rgba(0,0,0,.22); }
+        .title-start { flex: 1; background: #f28c27; }
+        .title-stickers { flex: 0 0 auto; background: #bb7a12; }
+        .title-button:active { transform: translateY(4px); box-shadow: 0 3px 10px rgba(0,0,0,.3); }
+        .title-screen [hidden] { display: none !important; }
+        @keyframes forest-scene-drift { from { transform: scale(1.005) translate3d(0, 0, 0); } to { transform: scale(1.04) translate3d(-.45%, .35%, 0); } }
+        @keyframes forest-glow { from { opacity: .55; } to { opacity: 1; } }
+        @keyframes firefly-drift { from { transform: translate3d(0, 8px, 0) scale(.8); opacity: .35; } to { transform: translate3d(8px, -14px, 0) scale(1.15); opacity: .9; } }
+        @keyframes title-heading-in { from { opacity: 0; transform: translateY(-9px); } to { opacity: 1; transform: translateY(0); } }
+        @media (prefers-reduced-motion: reduce) {
+            .title-screen.active .title-art, .title-ambience, .title-firefly, .title-screen.active .title-heading { animation: none; }
+            .title-actions { transition: none; }
+        }
+        #reward-sticker { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; }
+        .character-sticker-image { box-sizing: border-box; width: 100%; height: 100%; object-fit: contain; padding: 5px; background: #fff; border: 5px solid #fff; border-radius: 18px; filter: drop-shadow(0 4px 4px rgba(0,0,0,.18)); }
+        #reward-sticker .character-sticker-image { width: min(250px, 62vw); height: 190px; }
+        @media (max-width: 520px) {
+            .title-actions { width: 92vw; gap: 8px; }
+            .title-button { min-height: 58px; padding: 12px 10px; font-size: clamp(14px, 4vw, 20px); border-radius: 16px; }
+        }
+        @media (min-width: 768px) {
+            body { padding: 0; }
+            .app-container { height: 100vh; height: 100dvh; }
+        }
+
+        .logo-text {
+            font-family: 'Dela Gothic One', cursive;
+            text-align: center;
+            color: #ff9f43; 
+            text-shadow: 2px 2px 0 #fff, -2px -2px 0 #fff, 2px -2px 0 #fff, -2px 2px 0 #fff, 0 4px 0 #fff, 0 6px 0 #d35400, 0 8px 4px rgba(0,0,0,0.2);
+            letter-spacing: 2px;
+            line-height: 1.2;
+        }
+
+        .btn-3d {
+            transition: all 0.1s;
+            box-shadow: 0 6px 0 rgba(0,0,0,0.2);
+            border-radius: 12px;
+        }
+        .btn-3d:active {
+            transform: translateY(6px);
+            box-shadow: 0 0px 0 rgba(0,0,0,0.2);
+        }
+        
+        .btn-orange { background-color: #ff9f43; color: white; border: 2px solid #e67e22; }
+        .btn-blue { background-color: #54a0ff; color: white; border: 2px solid #2e86de; }
+        .btn-green { background-color: #1dd1a1; color: white; border: 2px solid #10ac84; }
+        .btn-pink { background-color: #ff9ff3; color: white; border: 2px solid #f368e0; }
+        .btn-yellow { background-color: #feca57; color: #8395a7; border: 2px solid #ff9f43; }
+        .btn-gray { background-color: #f1f2f6; color: #576574; border: 2px solid #ced6e0; }
+        .btn-white { background-color: #ffffff; color: #2f3640; border: 2px solid #ced6e0; }
+        
+        .tab-active { background-color: #ff9ff3; color: white; border-color: #f368e0; border-width: 2px; }
+        .tab-inactive { background-color: #f1f2f6; color: #576574; }
+        
+        .math-text { font-family: 'Dela Gothic One', cursive; }
+        
+        /* 筆算の縦軸を揃えるためのスタイル */
+        .digit-box {
+            display: inline-block;
+            width: 1.2em;
+            text-align: center;
+        }
+        .hissan-answer-digit { border-radius: .14em; }
+        .hissan-answer-digit.is-current { background: #fff1b8; outline: 3px solid #f2b544; outline-offset: -2px; }
+
+        #choices-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 1rem;
+            height: 100%;
+            padding: 1rem;
+        }
+        .op-btn:disabled { opacity: .45; filter: grayscale(.35); cursor: not-allowed; box-shadow: none; }
+        .choice-btn {
+            height: 100%;
+            font-size: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        @media (min-width: 768px) { .choice-btn { font-size: 2.5rem; } }
+
+        /* 計算画面は、タイトル画面の森と木漏れ日の色にそっと合わせる */
+        #game-screen {
+            color: #1d3b2c;
+            background: #f6f0df;
+        }
+        #game-screen > div:first-child {
+            background: linear-gradient(105deg, #183a2c, #28523b);
+            border-color: #c6a15a;
+        }
+        #game-screen > div:first-child .text-blue-600 { color: #fff4d5; }
+        #game-screen > div:first-child .text-yellow-600 { color: #f4d17d; }
+        #game-screen > div:first-child .btn-gray {
+            color: #31503b;
+            background: #f6eed8;
+            border-color: #dfc886;
+            box-shadow: 0 4px 0 #c4aa68;
+        }
+        #game-screen > .flex-1.flex {
+            background:
+                radial-gradient(ellipse at 50% 42%, rgba(255,255,255,.92) 0%, rgba(250,247,235,.96) 58%, #efe6cf 100%);
+        }
+        #game-screen > .flex-1.flex > div:first-child {
+            border-color: #e1d6b8;
+        }
+        #normal-question-area {
+            border-radius: 24px;
+            background: linear-gradient(180deg, rgba(255,255,255,.42), rgba(255,255,255,0));
+        }
+        #game-screen #search-question-area {
+            background: #f5efd9;
+            border-color: #d6bd7d;
+            border-style: solid;
+        }
+        #game-screen #search-question-area .text-gray-600 { color: #586b57; }
+        #game-screen #search-target-ans { color: #28523b; }
+        #game-screen #hissan-area,
+        #game-screen #yoko-area { color: #1d3b2c; }
+        #game-screen #hissan-area > div:nth-child(2) { border-color: #96743b; }
+        #game-screen #hissan-ans,
+        #game-screen #yoko-ans { color: #28523b; }
+        #game-screen #yoko-ans { border-color: #96743b; }
+        #game-screen .hissan-answer-digit.is-current {
+            background: #f5df9d;
+            outline-color: #b78732;
+        }
+        #game-screen #search-input-area,
+        #game-screen #normal-input-area {
+            background: #e9eadc;
+        }
+        #game-screen #normal-input-area {
+            border-color: #c6a15a;
+        }
+        #game-screen #hissan-input-hint { color: #5c6d58; }
+        #game-screen #normal-input-area .btn-white {
+            color: #234331;
+            background: #fffdf5;
+            border-color: #d7ceb5;
+            box-shadow: 0 4px 0 #c9c1aa;
+        }
+        #game-screen #normal-input-area .btn-gray {
+            color: #4b5b48;
+            background: #e3e1d3;
+            border-color: #c7c2ad;
+            box-shadow: 0 4px 0 #b6b09b;
+        }
+        #game-screen #normal-input-area .btn-orange {
+            color: #fffaf0;
+            background: #c87524;
+            border-color: #a85e1a;
+            box-shadow: 0 4px 0 #955019;
+        }
+        #game-screen #choices-container .choice-btn {
+            color: #234331;
+            border-color: #b5c6a6;
+            background: #dce7d1;
+            box-shadow: 0 4px 0 rgba(45,59,37,.16);
+        }
+        #game-screen #choices-container .choice-btn:nth-child(2) {
+            color: #59431e;
+            border-color: #ddc475;
+            background: #f2e3b5;
+        }
+        #game-screen #choices-container .choice-btn:nth-child(3) {
+            color: #593b28;
+            border-color: #d4a47b;
+            background: #e9c4a2;
+        }
+        #game-screen #choices-container .choice-btn:nth-child(4) {
+            color: #fff8e8;
+            border-color: #234731;
+            background: #315a40;
+        }
+        #game-screen button:focus-visible {
+            outline-color: #b78732;
+        }
+
+        /* 設定画面も、森の緑・木漏れ日の金色・あたたかな紙色で統一 */
+        #setup-screen {
+            color: #234331;
+            background: linear-gradient(180deg, #faf6e9 0%, #f0e8d2 100%);
+        }
+        #setup-screen > div:first-child {
+            padding-bottom: .75rem;
+            border-bottom: 1px solid #ddcc9f;
+        }
+        #setup-screen > div:first-child .btn-gray {
+            color: #31503b;
+            background: #fffaf0;
+            border-color: #ddc987;
+            box-shadow: 0 4px 0 #c4aa68;
+        }
+        #setup-screen .text-blue-800,
+        #setup-screen .text-blue-700 { color: #28523b; }
+        #setup-screen .bg-blue-50 {
+            background: #f5efd9;
+            border-color: #d6c38f;
+        }
+        #setup-screen .tab-active {
+            color: #fff8e8;
+            background: #315a40;
+            border: 2px solid #234731;
+        }
+        #setup-screen .tab-inactive {
+            color: #4d604e;
+            background: #eee9d9;
+            border: 2px solid #d4cdb9;
+        }
+        #setup-screen .btn-3d {
+            box-shadow: 0 5px 0 rgba(54,70,49,.18);
+        }
+        #setup-screen .btn-3d:active {
+            box-shadow: 0 0 0 rgba(54,70,49,.18);
+        }
+        #setup-screen .btn-gray {
+            color: #435640;
+            background: #fffdf5;
+            border-color: #d7ceb5;
+        }
+        #setup-screen .btn-orange {
+            color: #fffaf0;
+            background: #b9681d;
+            border-color: #995519;
+        }
+        #setup-screen .btn-green {
+            color: #fff8e8;
+            background: #315a40;
+            border-color: #234731;
+        }
+        #setup-screen .btn-blue {
+            color: #fffaf0;
+            background: #a97820;
+            border-color: #896018;
+        }
+        #setup-screen .op-btn:disabled {
+            color: #77806d;
+            background: #e8e5d8;
+            border-color: #d2cebf;
+            opacity: .7;
+            filter: none;
+        }
+        #setup-screen .pt-4 .btn-orange {
+            color: #fffaf0;
+            background: #b9681d;
+            border-color: #995519;
+            box-shadow: 0 6px 0 #8f4f18;
+        }
+        #setup-screen button:focus-visible {
+            outline-color: #b78732;
+        }
+        #topic-question,
+        #search-topic-prompt { line-height: 1.55; }
+        #topic-answer-area { min-height: 1.5em; }
+    </style>
+</head>
+<body>
+    <div class="app-container relative">
+        
+        <!-- ================= タイトル画面 ================= -->
+        <div id="title-screen" class="screen active title-screen">
+            <img id="title-art" src="./assets/title_art_fullscreen.jpeg" alt="ミミとトトが算数の森を冒険するタイトル画像" class="title-art" onerror="handleTitleArtError(this)">
+            <div class="title-ambience" aria-hidden="true"><span class="title-firefly one"></span><span class="title-firefly two"></span></div>
+            <div class="title-heading" aria-label="Mimi and Toto’s Big Adventure、さんすう大冒険">
+                <h1>MIMI &amp; TOTO’S BIG ADVENTURE</h1>
+                <p>さんすう大冒険</p>
+            </div>
+            <div id="alt-logo-container" class="title-fallback" hidden>
+                <h1 class="logo-text text-5xl md:text-7xl">さんすう<br>大冒険</h1>
+                <p class="text-lg font-bold">ミミとトトと、計算のぼうけんへ！</p>
+            </div>
+            <div id="title-actions" class="title-actions" aria-hidden="true">
+                <button onclick="goToSetup()" class="title-button title-start">スタート！ 🚀</button>
+                <button onclick="showStickers('title-screen')" class="title-button title-stickers">📔 シールちょう</button>
+            </div>
+        </div>
+
+        <!-- ================= 設定画面 ================= -->
+        <div id="setup-screen" class="screen bg-white p-4 md:p-8 overflow-y-auto">
+            <div class="flex justify-between items-center mb-6 max-w-3xl mx-auto w-full">
+                <button onclick="showScreen('title-screen')" class="btn-3d btn-gray px-4 py-2 md:px-5 md:py-3 rounded-xl text-sm md:text-base font-bold">⬅️ もどる</button>
+                <h2 class="text-2xl md:text-3xl font-bold text-blue-800">せってい</h2>
+                <div class="w-20"></div>
+            </div>
+
+            <div class="max-w-2xl mx-auto w-full flex-1 space-y-6">
+                <!-- モード選択 -->
+                <div class="flex space-x-2">
+                    <button id="tab-normal" class="flex-1 py-4 rounded-xl font-bold text-lg tab-active btn-3d" onclick="setMode('normal')">✏️ ふつう</button>
+                    <button id="tab-search" class="flex-1 py-4 rounded-xl font-bold text-lg tab-inactive btn-3d" onclick="setMode('search')">🔍 さがす</button>
+                </div>
+
+                <!-- 学年選択 -->
+                <div class="bg-blue-50 p-5 rounded-2xl border-2 border-blue-200">
+                    <h2 class="text-center font-bold text-blue-800 text-lg mb-3">がくねん</h2>
+                    <div class="grid grid-cols-3 gap-3">
+                        <button class="grade-btn btn-3d btn-gray py-3 rounded-xl font-bold text-lg" data-val="1">1年</button>
+                        <button class="grade-btn btn-3d btn-orange py-3 rounded-xl font-bold text-lg" data-val="2">2年</button>
+                        <button class="grade-btn btn-3d btn-gray py-3 rounded-xl font-bold text-lg" data-val="3">3年</button>
+                        <button class="grade-btn btn-3d btn-gray py-3 rounded-xl font-bold text-lg" data-val="4">4年</button>
+                        <button class="grade-btn btn-3d btn-gray py-3 rounded-xl font-bold text-lg" data-val="5">5年</button>
+                        <button class="grade-btn btn-3d btn-gray py-3 rounded-xl font-bold text-lg" data-val="6">6年</button>
+                    </div>
+                </div>
+
+                <!-- 計算選択 -->
+                <div class="bg-blue-50 p-5 rounded-2xl border-2 border-blue-200">
+                    <h2 class="text-center font-bold text-blue-800 text-lg mb-3">けいさん・べんきょう</h2>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        <button class="op-btn btn-3d btn-green py-3 rounded-xl font-bold text-lg" data-val="add">たしざん</button>
+                        <button class="op-btn btn-3d btn-gray py-3 rounded-xl font-bold text-lg" data-val="sub">ひきざん</button>
+                        <button class="op-btn btn-3d btn-gray py-3 rounded-xl font-bold text-lg" data-val="mul">かけざん</button>
+                        <button class="op-btn btn-3d btn-gray py-3 rounded-xl font-bold text-lg" data-val="div">わりざん</button>
+                        <div class="col-span-2 md:col-span-3 border-t border-[#d6c38f] pt-3 text-center text-sm font-bold text-[#586b57]">ほかのべんきょう</div>
+                        <button class="op-btn btn-3d btn-gray py-3 rounded-xl font-bold text-lg" data-val="clock">とけい</button>
+                        <button class="op-btn btn-3d btn-gray py-3 rounded-xl font-bold text-lg" data-val="fraction">分数</button>
+                        <button class="op-btn btn-3d btn-gray py-3 rounded-xl font-bold text-lg" data-val="decimal">小数</button>
+                        <button class="op-btn btn-3d btn-gray py-3 rounded-xl font-bold text-lg" data-val="unit">単位</button>
+                        <button class="op-btn btn-3d btn-gray py-3 rounded-xl font-bold text-lg" data-val="shape">図形</button>
+                    </div>
+                    <p class="text-center text-sm text-blue-700 font-bold mt-3">1つ以上選んでね。選んだ内容からランダムに出ます。うすいボタンは、まだ習わない内容です。</p>
+                </div>
+
+                <!-- 問題数選択 -->
+                <div class="bg-blue-50 p-4 rounded-2xl border-2 border-blue-200 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <h2 class="font-bold text-blue-800 text-lg">もんだいの かず</h2>
+                    <div class="flex space-x-2 w-full md:w-auto">
+                        <button class="q-btn btn-3d btn-gray flex-1 md:px-5 py-3 rounded-xl font-bold" data-val="5">5問</button>
+                        <button class="q-btn btn-3d btn-blue flex-1 md:px-5 py-3 rounded-xl font-bold" data-val="10">10問</button>
+                        <button class="q-btn btn-3d btn-gray flex-1 md:px-5 py-3 rounded-xl font-bold" data-val="20">20問</button>
+                    </div>
+                </div>
+                
+                <div class="pt-4 pb-8">
+                    <button onclick="startGame()" class="w-full py-5 text-3xl font-bold rounded-2xl btn-3d btn-orange shadow-lg">はじめる！ ✏️</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= ゲーム画面 ================= -->
+        <div id="game-screen" class="screen bg-white relative">
+            <div class="flex justify-between items-center p-4 bg-gray-100 border-b-2 border-gray-200 md:px-8">
+                <button onclick="showScreen('setup-screen')" class="btn-3d btn-gray px-4 py-2 rounded-lg text-sm font-bold">⬅️ やめる</button>
+                <div class="font-bold text-blue-600 text-xl">もんだい <span id="current-q-num">1</span>/<span id="total-q-num">10</span></div>
+                <div class="font-bold text-yellow-600 text-xl">⭐ <span id="score-display">0</span></div>
+            </div>
+
+            <!-- PC/タブレット向けの2カラムレイアウト（スマホでは縦積み） -->
+            <div class="flex-1 flex flex-col md:flex-row w-full h-full overflow-hidden">
+                
+                <!-- 問題エリア -->
+                <div class="flex-1 flex flex-col items-center justify-center relative md:border-r-2 md:border-gray-200">
+                    <!-- さがすモード -->
+                    <div id="search-question-area" class="hidden flex-col items-center justify-center p-6 bg-yellow-50 border-b-4 border-yellow-200 border-dashed md:border-b-0 md:h-full md:w-full w-full">
+                        <div id="search-instruction" class="text-gray-600 font-bold mb-2 text-xl md:text-2xl">こたえが</div>
+                        <div id="search-target-ans" class="text-7xl md:text-8xl text-purple-600 math-text">7</div>
+                        <div id="search-topic-prompt" class="hidden max-w-2xl text-center text-2xl md:text-4xl font-bold leading-relaxed text-[#234331]"></div>
+                        <div id="search-question-subtitle" class="text-gray-600 font-bold mt-2 text-xl md:text-2xl">になる しきは どれ？</div>
+                    </div>
+
+                    <!-- ふつうモード -->
+                    <div id="normal-question-area" class="flex-1 flex flex-col items-center justify-center p-4 w-full min-h-[250px] md:h-full">
+                        <div id="topic-question" class="hidden max-w-2xl text-center text-2xl md:text-4xl font-bold leading-relaxed text-[#234331] mb-6"></div>
+                        <div id="topic-answer-area" class="hidden items-center justify-center text-5xl md:text-7xl math-text text-[#28523b]">
+                            <span id="topic-answer-value" class="inline-block min-w-[1.8em] min-h-[1.2em] border-b-[5px] border-[#96743b] text-center"></span>
+                            <span id="topic-answer-suffix" class="text-3xl md:text-5xl ml-2"></span>
+                        </div>
+                        
+                        <!-- 筆算 -->
+                        <div id="hissan-area" class="hidden flex-col items-end text-5xl md:text-7xl math-text text-gray-800">
+                            <!-- 桁を揃えるための flex コンテナ -->
+                            <div id="hissan-num1" class="flex justify-end pr-2 md:pr-4 w-full tracking-widest"></div>
+                            <div class="flex items-center border-b-[6px] border-gray-800 pb-2 mb-2 w-full justify-end pr-2 md:pr-4">
+                                <div id="hissan-op" class="mr-4 md:mr-6 text-5xl"></div>
+                                <div id="hissan-num2" class="flex justify-end tracking-widest"></div>
+                            </div>
+                            <div id="hissan-ans" class="flex justify-end pr-2 md:pr-4 text-blue-600 h-20 md:h-24 min-w-[150px] tracking-widest"></div>
+                        </div>
+                        
+                        <!-- 横式 -->
+                        <div id="yoko-area" class="hidden text-4xl md:text-7xl math-text text-gray-800 text-center w-full px-2">
+                            <span id="yoko-num1"></span> <span id="yoko-op"></span> <span id="yoko-num2"></span> = <br>
+                            <span id="yoko-ans" class="text-blue-600 border-b-[6px] border-blue-600 inline-block min-w-[120px] md:min-w-[180px] h-16 md:h-24 mt-6"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 入力エリア -->
+                <div class="md:w-[450px] flex flex-col h-full bg-gray-50">
+                    
+                    <!-- さがすモード入力 -->
+                    <div id="search-input-area" class="hidden flex-1 p-4 w-full h-full">
+                        <div id="choices-container">
+                            <button class="choice-btn btn-3d btn-blue math-text rounded-3xl" onclick="checkSearchAnswer(0)" id="choice-0"></button>
+                            <button class="choice-btn btn-3d btn-pink math-text rounded-3xl" onclick="checkSearchAnswer(1)" id="choice-1"></button>
+                            <button class="choice-btn btn-3d btn-yellow math-text rounded-3xl" onclick="checkSearchAnswer(2)" id="choice-2"></button>
+                            <button class="choice-btn btn-3d btn-green math-text rounded-3xl" onclick="checkSearchAnswer(3)" id="choice-3"></button>
+                        </div>
+                    </div>
+
+                    <!-- ふつうモード入力（テンキー） -->
+                    <div id="normal-input-area" class="bg-gray-100 p-3 md:p-6 pb-6 md:pb-8 rounded-t-3xl border-t-4 border-gray-300 md:border-t-0 md:rounded-none md:h-full flex flex-col justify-center w-full">
+                        <div id="hissan-input-hint" class="text-center text-sm font-bold text-gray-500 mb-2">※ひっさんは １のくらい からいれてね</div>
+                        <button id="decimal-key" class="hidden mx-auto mb-2 px-5 py-1 rounded-lg btn-3d btn-white text-lg font-bold" onclick="typeDecimal()">. 小数点</button>
+                        <div class="grid grid-cols-3 gap-2 md:gap-4 w-full max-w-sm mx-auto">
+                            <button class="btn-3d btn-white text-gray-800 text-3xl md:text-5xl font-bold py-4 md:py-6 rounded-2xl" onclick="typeNum(7)">7</button>
+                            <button class="btn-3d btn-white text-gray-800 text-3xl md:text-5xl font-bold py-4 md:py-6 rounded-2xl" onclick="typeNum(8)">8</button>
+                            <button class="btn-3d btn-white text-gray-800 text-3xl md:text-5xl font-bold py-4 md:py-6 rounded-2xl" onclick="typeNum(9)">9</button>
+                            <button class="btn-3d btn-white text-gray-800 text-3xl md:text-5xl font-bold py-4 md:py-6 rounded-2xl" onclick="typeNum(4)">4</button>
+                            <button class="btn-3d btn-white text-gray-800 text-3xl md:text-5xl font-bold py-4 md:py-6 rounded-2xl" onclick="typeNum(5)">5</button>
+                            <button class="btn-3d btn-white text-gray-800 text-3xl md:text-5xl font-bold py-4 md:py-6 rounded-2xl" onclick="typeNum(6)">6</button>
+                            <button class="btn-3d btn-white text-gray-800 text-3xl md:text-5xl font-bold py-4 md:py-6 rounded-2xl" onclick="typeNum(1)">1</button>
+                            <button class="btn-3d btn-white text-gray-800 text-3xl md:text-5xl font-bold py-4 md:py-6 rounded-2xl" onclick="typeNum(2)">2</button>
+                            <button class="btn-3d btn-white text-gray-800 text-3xl md:text-5xl font-bold py-4 md:py-6 rounded-2xl" onclick="typeNum(3)">3</button>
+                            <button class="btn-3d btn-gray text-xl md:text-3xl font-bold py-4 md:py-6 rounded-2xl" onclick="clearNum()">けす</button>
+                            <button class="btn-3d btn-white text-gray-800 text-3xl md:text-5xl font-bold py-4 md:py-6 rounded-2xl" onclick="typeNum(0)">0</button>
+                            <button class="btn-3d btn-orange text-2xl md:text-4xl font-bold py-4 md:py-6 rounded-2xl" onclick="checkNormalAnswer()">OK</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= 解説（不正解時）モーダル ================= -->
+        <div id="explanation-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl p-8 max-w-sm w-full text-center border-4 border-orange-400 shadow-2xl">
+                <div class="text-7xl mb-6">💦</div>
+                <h3 class="text-3xl font-bold text-orange-600 mb-4">おしい！</h3>
+                <div id="explanation-text" class="text-xl text-gray-700 font-bold mb-8 leading-relaxed"></div>
+                <button onclick="closeExplanation()" class="w-full btn-3d btn-orange py-4 text-2xl font-bold rounded-xl">もういちど！</button>
+            </div>
+        </div>
+
+        <!-- ================= 結果画面 ================= -->
+        <div id="result-screen" class="screen bg-white p-6 md:p-12 justify-center">
+            <h2 class="text-5xl font-bold text-center text-orange-500 mb-8 logo-text">おわり！ 👑</h2>
+            
+            <div class="bg-yellow-50 rounded-3xl p-8 border-4 border-yellow-200 text-center mb-10 max-w-lg mx-auto w-full relative">
+                <div class="text-gray-600 font-bold mb-3 text-xl">あなたの スコア</div>
+                <div class="text-8xl font-bold text-orange-500 mb-4 math-text" id="final-score">100</div>
+                <div class="text-green-500 font-bold text-2xl mb-6" id="score-msg">パーフェクト！てんさいだね！ ✨</div>
+                
+                <div id="sticker-reward-area" class="hidden border-4 border-dashed border-pink-300 rounded-2xl p-6 bg-white mt-6">
+                    <div class="text-pink-500 font-bold text-xl mb-4">✨ シールをゲット！ ✨</div>
+                    <div id="reward-sticker" class="text-8xl mb-2 animate-bounce"></div>
+                </div>
+            </div>
+
+            <div class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-6 max-w-lg mx-auto w-full mt-auto md:mt-0">
+                <button onclick="showScreen('setup-screen')" class="flex-1 py-5 text-2xl font-bold rounded-2xl btn-3d btn-green">もういっかい 🔄</button>
+                <button onclick="showStickers('result-screen')" class="flex-1 py-5 text-2xl font-bold rounded-2xl btn-3d btn-yellow">📔 シールちょう</button>
+            </div>
+        </div>
+
+        <!-- ================= シールちょう画面 ================= -->
+        <div id="sticker-screen" class="screen bg-yellow-50 p-4 md:p-8">
+            <div class="flex justify-between items-center mb-6 md:mb-10 max-w-5xl mx-auto w-full">
+                <button onclick="closeStickers()" class="btn-3d btn-gray px-4 py-2 md:px-5 md:py-3 rounded-xl font-bold text-base md:text-lg">⬅️ もどる</button>
+                <h2 class="text-3xl md:text-4xl font-bold text-yellow-600">シールちょう 📔</h2>
+                <div class="w-16 md:w-20"></div>
+            </div>
+            
+            <div class="flex-1 bg-white rounded-3xl border-4 border-yellow-200 p-6 md:p-10 overflow-y-auto max-w-5xl mx-auto w-full">
+                <div id="sticker-grid" class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 md:gap-6"></div>
+                <div id="no-sticker-msg" class="text-center text-gray-400 font-bold text-xl md:text-2xl mt-20 hidden">
+                    まんてん をとって<br>シールをあつめよう！
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- 音声（ブラウザー内の音を使用。音が使えなくてもゲームは遊べます） ---
+        let audioContext = null;
+        let isAudioInitialized = false;
+
+        async function initAudio() {
+            if (isAudioInitialized) return;
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContextClass) {
+                isAudioInitialized = true;
+                return;
+            }
+            try {
+                audioContext = audioContext || new AudioContextClass();
+                if (audioContext.state === 'suspended') await audioContext.resume();
+                isAudioInitialized = true;
+            } catch (_) {
+                // 音が使えない環境でも、ゲームの操作は続けられます。
+            }
+        }
+
+        document.addEventListener('pointerdown', () => { void initAudio(); }, { once: true, capture: true });
+
+        function playSound(type) {
+            if (!audioContext || !isAudioInitialized || audioContext.state !== 'running') return;
+            const now = audioContext.currentTime;
+            const patterns = {
+                click: [[330, 0, 0.045, 'sine', 0.025]],
+                correct: [[880, 0, 0.13, 'sine', 0.06], [1109, 0.11, 0.15, 'sine', 0.06], [1320, 0.23, 0.22, 'sine', 0.06]],
+                wrong: [[165, 0, 0.11, 'triangle', 0.045], [123, 0.12, 0.12, 'triangle', 0.04]],
+                clear: [[523, 0, 0.16, 'sine', 0.05], [659, 0.14, 0.16, 'sine', 0.05], [784, 0.28, 0.2, 'sine', 0.05], [880, 0.48, 0.42, 'sine', 0.06], [1109, 0.5, 0.4, 'sine', 0.04], [1320, 0.52, 0.38, 'sine', 0.035]]
+            };
+            (patterns[type] || []).forEach(([frequency, offset, duration, wave, volume]) => {
+                const oscillator = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                const start = now + offset;
+                oscillator.type = wave;
+                oscillator.frequency.setValueAtTime(frequency, start);
+                gain.gain.setValueAtTime(0.0001, start);
+                gain.gain.exponentialRampToValueAtTime(volume, start + 0.012);
+                gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+                oscillator.connect(gain);
+                gain.connect(audioContext.destination);
+                oscillator.start(start);
+                oscillator.stop(start + duration + 0.02);
+            });
+        }
+
+        // --- 状態管理変数 ---
+        let currentMode = 'normal';
+        let grade = 2;
+        let operations = ['add'];
+        const arithmeticOps = ['add', 'sub', 'mul', 'div'];
+        let totalQuestions = 10;
+        
+        let currentQuestion = 0;
+        let score = 0;
+        let hasMistaked = false; // 1回でも間違えたか
+        
+        let currentAns = 0;
+        let currentInput = "";
+        
+        let isHissan = true;
+        let hissanInputs = [];   // [0]が一の位
+        let hissanFocus = 0;     // 現在の入力桁
+        let hissanMaxFocus = 0;  // 答えの最大桁数
+        
+        let currentOptions = [];
+        let num1, num2, currentOpStr;
+        let currentTopic = '';
+        let topicPrompt = '';
+        let topicAnswerSuffix = '';
+        let topicDecimalPlaces = 0;
+        let previousScreen = 'title-screen';
+        let titleRevealTimer = null;
+
+        function handleTitleArtError(image) {
+            const screen = document.getElementById('title-screen');
+            const fallback = document.getElementById('alt-logo-container');
+            if (!image.dataset.backupTried) {
+                image.dataset.backupTried = 'true';
+                screen.classList.add('using-backup-art');
+                fallback.hidden = true;
+                image.src = './assets/Gemini_Generated_Image.jpeg';
+                return;
+            }
+            image.hidden = true;
+            screen.classList.remove('using-backup-art');
+            screen.classList.add('title-art-missing');
+            fallback.hidden = false;
+        }
+
+        function scheduleTitleActions() {
+            const screen = document.getElementById('title-screen');
+            const actions = document.getElementById('title-actions');
+            const image = document.getElementById('title-art');
+            if (!screen || !actions || !image) return;
+            if (titleRevealTimer) window.clearTimeout(titleRevealTimer);
+            screen.classList.remove('buttons-visible');
+            actions.setAttribute('aria-hidden', 'true');
+
+            const startDelay = () => {
+                if (!screen.classList.contains('active')) return;
+                titleRevealTimer = window.setTimeout(() => {
+                    if (screen.classList.contains('active')) {
+                        screen.classList.add('buttons-visible');
+                        actions.setAttribute('aria-hidden', 'false');
+                    }
+                }, 2000);
+            };
+            if (image.complete) startDelay();
+            else {
+                image.addEventListener('load', startDelay, { once: true });
+                image.addEventListener('error', startDelay, { once: true });
+            }
+        }
+
+        function updateOperationAvailability() {
+            const allowed = grade === 1 ? ['add', 'sub'] : grade === 2 ? ['add', 'sub', 'mul'] : ['add', 'sub', 'mul', 'div'];
+            const topicAllowed = new Set(['clock', 'unit', 'shape']);
+            if (grade >= 2) topicAllowed.add('fraction');
+            if (grade >= 3) topicAllowed.add('decimal');
+            operations = operations.filter(op => arithmeticOps.includes(op) ? allowed.includes(op) : topicAllowed.has(op));
+            if (operations.length === 0) operations = ['add'];
+            document.querySelectorAll('.op-btn').forEach(btn => {
+                const isArithmetic = arithmeticOps.includes(btn.dataset.val);
+                const selectable = isArithmetic ? allowed.includes(btn.dataset.val) : topicAllowed.has(btn.dataset.val);
+                const selected = operations.includes(btn.dataset.val);
+                btn.disabled = !selectable;
+                btn.setAttribute('aria-disabled', String(!selectable));
+                btn.setAttribute('aria-pressed', String(selected));
+                btn.title = selectable ? '選べます' : (btn.dataset.val === 'fraction' || btn.dataset.val === 'decimal' ? 'この学年ではまだ習いません' : 'この学年ではまだ習わない計算です');
+                btn.classList.toggle('btn-green', selected);
+                btn.classList.toggle('btn-gray', !selected);
+            });
+        }
+
+        const characterStickerId = 'character-trio';
+        const characterStickerImage = './assets/character_sticker_trio.jpeg';
+        const rareStickers = ['👑', '🦄', '⭐', '🌈', '🚀', '🦖', '🐬', '🍓', '🎀', '💎', '🍔', '🎉', '🍎', '🌻', '🐶', '🐱'];
+        function loadStickers() {
+            try {
+                const saved = JSON.parse(localStorage.getItem('mathStickers') || '[]');
+                return Array.isArray(saved) ? saved.filter(item => typeof item === 'string') : [];
+            } catch (_) {
+                return [];
+            }
+        }
+
+        function saveStickers() {
+            try { localStorage.setItem('mathStickers', JSON.stringify(myStickers)); } catch (_) { /* 保存できなくてもプレイは続けられます */ }
+        }
+
+        let myStickers = loadStickers();
+
+        // 画面切り替え関数
+        function showScreen(screenId) {
+            if(screenId !== 'sticker-screen' && screenId !== 'explanation-modal') playSound('click');
+            document.querySelectorAll('.screen').forEach(s => {
+                s.classList.remove('active');
+            });
+            const nextScreen = document.getElementById(screenId);
+            nextScreen.classList.add('active');
+            if (screenId === 'title-screen') {
+                scheduleTitleActions();
+            } else {
+                if (titleRevealTimer) window.clearTimeout(titleRevealTimer);
+                const actions = document.getElementById('title-actions');
+                if (actions) actions.setAttribute('aria-hidden', 'true');
+            }
+        }
+
+        function goToSetup() { showScreen('setup-screen'); }
+
+        // 筆算の縦軸を揃えるためのHTML生成フォーマッタ
+        function formatDigits(numStr) {
+            return numStr.toString().split('').map(char => `<span class="digit-box">${char}</span>`).join('');
+        }
+
+        function getHissanPlaceName(index) {
+            return `${10 ** index}のくらい`;
+        }
+
+        // --- UI設定イベント ---
+        document.querySelectorAll('.grade-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                playSound('click');
+                document.querySelectorAll('.grade-btn').forEach(b => { b.classList.remove('btn-orange'); b.classList.add('btn-gray'); });
+                e.target.classList.remove('btn-gray'); e.target.classList.add('btn-orange');
+                grade = parseInt(e.target.dataset.val);
+                updateOperationAvailability();
+            });
+        });
+
+        document.querySelectorAll('.op-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                playSound('click');
+                const val = e.target.dataset.val;
+                if(operations.includes(val)) {
+                    if(operations.length > 1) { // 少なくとも1つは残す
+                        operations = operations.filter(op => op !== val);
+                        e.target.classList.remove('btn-green'); e.target.classList.add('btn-gray');
+                        e.target.setAttribute('aria-pressed', 'false');
+                    }
+                } else {
+                    operations.push(val);
+                    e.target.classList.remove('btn-gray'); e.target.classList.add('btn-green');
+                    e.target.setAttribute('aria-pressed', 'true');
+                }
+            });
+        });
+
+        document.querySelectorAll('.q-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                playSound('click');
+                document.querySelectorAll('.q-btn').forEach(b => { b.classList.remove('btn-blue'); b.classList.add('btn-gray'); });
+                e.target.classList.remove('btn-gray'); e.target.classList.add('btn-blue');
+                totalQuestions = parseInt(e.target.dataset.val);
+            });
+        });
+
+        updateOperationAvailability();
+
+        function setMode(mode) {
+            playSound('click');
+            currentMode = mode;
+            if(mode === 'normal') {
+                document.getElementById('tab-normal').className = "flex-1 py-4 rounded-xl font-bold text-lg tab-active btn-3d";
+                document.getElementById('tab-search').className = "flex-1 py-4 rounded-xl font-bold text-lg tab-inactive btn-3d";
+            } else {
+                document.getElementById('tab-search').className = "flex-1 py-4 rounded-xl font-bold text-lg tab-active btn-3d";
+                document.getElementById('tab-normal').className = "flex-1 py-4 rounded-xl font-bold text-lg tab-inactive btn-3d";
+            }
+        }
+
+        // --- ゲーム進行ロジック ---
+        function startGame() {
+            playSound('click');
+            currentQuestion = 0;
+            score = 0;
+            
+            document.getElementById('total-q-num').innerText = totalQuestions;
+            
+            // UIモード切り替え
+            if(currentMode === 'normal') {
+                document.getElementById('normal-question-area').classList.remove('hidden');
+                document.getElementById('normal-question-area').classList.add('flex');
+                document.getElementById('normal-input-area').classList.remove('hidden');
+                document.getElementById('normal-input-area').classList.add('flex');
+                document.getElementById('search-question-area').classList.add('hidden');
+                document.getElementById('search-question-area').classList.remove('flex');
+                document.getElementById('search-input-area').classList.add('hidden');
+            } else {
+                document.getElementById('normal-question-area').classList.add('hidden');
+                document.getElementById('normal-question-area').classList.remove('flex');
+                document.getElementById('normal-input-area').classList.add('hidden');
+                document.getElementById('normal-input-area').classList.remove('flex');
+                document.getElementById('search-question-area').classList.remove('hidden');
+                document.getElementById('search-question-area').classList.add('flex');
+                document.getElementById('search-input-area').classList.remove('hidden');
+            }
+            
+            showScreen('game-screen');
+            nextQuestion();
+        }
+
+        function nextQuestion() {
+            currentQuestion++;
+            if (currentQuestion > totalQuestions) {
+                endGame();
+                return;
+            }
+            document.getElementById('current-q-num').innerText = currentQuestion;
+            document.getElementById('score-display').innerText = score;
+            generateQuestion();
+        }
+
+        // 乱数生成ヘルパー
+        function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+        function formatClockTime(totalMinutes) {
+            const hour = Math.floor(totalMinutes / 60);
+            const minute = totalMinutes % 60;
+            return minute === 0 ? `${hour}時` : `${hour}時${minute}分`;
+        }
+
+        function greatestCommonDivisor(a, b) {
+            a = Math.abs(a); b = Math.abs(b);
+            while (b) [a, b] = [b, a % b];
+            return a || 1;
+        }
+
+        function setFractionAnswer(numerator, denominator) {
+            const divisor = greatestCommonDivisor(numerator, denominator);
+            currentAns = numerator / divisor;
+            topicAnswerSuffix = '/' + (denominator / divisor);
+        }
+
+        function decimalText(value, places) {
+            return Number(value.toFixed(places)).toFixed(places);
+        }
+
+        function generateTopicQuestion(topic) {
+            currentTopic = topic;
+            isHissan = false;
+            topicAnswerSuffix = '';
+            topicDecimalPlaces = 0;
+
+            if (topic === 'clock') {
+                if (grade === 1) {
+                    const hour = rand(1, 12);
+                    currentAns = hour;
+                    topicAnswerSuffix = '時';
+                    topicPrompt = `時計の短い針は${hour}、長い針は12をさしています。何時？`;
+                } else if (grade === 2) {
+                    if (Math.random() < .5) {
+                        const hours = rand(1, 5);
+                        currentAns = hours * 60;
+                        topicAnswerSuffix = '分';
+                        topicPrompt = `${hours}時間は何分？`;
+                    } else {
+                        const start = rand(8 * 60, 15 * 60) + rand(0, 3) * 15;
+                        const elapsed = rand(1, 6) * 15;
+                        currentAns = elapsed;
+                        topicAnswerSuffix = '分';
+                        topicPrompt = `${formatClockTime(start)}から${formatClockTime(start + elapsed)}まで、何分？`;
+                    }
+                } else {
+                    if (Math.random() < .35) {
+                        const minutes = rand(1, 9);
+                        currentAns = minutes * 60;
+                        topicAnswerSuffix = '秒';
+                        topicPrompt = `${minutes}分は何秒？`;
+                    } else {
+                        const start = rand(8 * 60, 18 * 60) + rand(0, 3) * 15;
+                        const elapsed = rand(2, 12) * 15;
+                        currentAns = elapsed;
+                        topicAnswerSuffix = '分';
+                        topicPrompt = `${formatClockTime(start)}から${formatClockTime(start + elapsed)}まで、何分？`;
+                    }
+                }
+                return;
+            }
+
+            if (topic === 'fraction') {
+                if (grade === 2) {
+                    const denominator = Math.random() < .5 ? 2 : 4;
+                    currentAns = 1;
+                    topicAnswerSuffix = '/' + denominator;
+                    topicPrompt = `ケーキを${denominator}つに同じ大きさで分けました。1つ分は全体の何分のいくつ？`;
+                } else if (grade === 3 || grade === 4) {
+                    const denominator = [2, 3, 4, 5, 8, 10][rand(0, 5)];
+                    const add = Math.random() < .5;
+                    let a, b;
+                    if (add) {
+                        a = rand(1, denominator - 1);
+                        b = rand(1, denominator - a);
+                        setFractionAnswer(a + b, denominator);
+                        topicPrompt = a + '/' + denominator + ' と ' + b + '/' + denominator + ' を合わせると、いくつ？';
+                    } else {
+                        a = rand(2, denominator);
+                        b = rand(1, a - 1);
+                        setFractionAnswer(a - b, denominator);
+                        topicPrompt = a + '/' + denominator + ' から ' + b + '/' + denominator + ' をひくと、いくつ？';
+                    }
+                    if (grade === 4 && Math.random() < .45) {
+                        const baseDenominator = [2, 3, 4, 5][rand(0, 3)];
+                        const multiplier = rand(2, 4);
+                        const numerator = rand(1, baseDenominator - 1);
+                        currentAns = numerator * multiplier;
+                        topicAnswerSuffix = '/' + (baseDenominator * multiplier);
+                        topicPrompt = numerator + '/' + baseDenominator + ' と同じ大きさになる、分母' + (baseDenominator * multiplier) + 'の分数は？';
+                    }
+                } else if (grade === 5) {
+                    const denominators = [2, 3, 4, 5, 6, 8, 10];
+                    let d1 = denominators[rand(0, denominators.length - 1)];
+                    let d2 = denominators[rand(0, denominators.length - 1)];
+                    while (d1 === d2) d2 = denominators[rand(0, denominators.length - 1)];
+                    let a = rand(1, d1 - 1), b = rand(1, d2 - 1);
+                    const add = Math.random() < .5;
+                    if (!add && a / d1 < b / d2) [a, b, d1, d2] = [b, a, d2, d1];
+                    const common = d1 * d2 / greatestCommonDivisor(d1, d2);
+                    const top1 = a * (common / d1), top2 = b * (common / d2);
+                    setFractionAnswer(add ? top1 + top2 : top1 - top2, common);
+                    topicPrompt = add
+                        ? a + '/' + d1 + ' + ' + b + '/' + d2 + ' = ?（答えをいちばん簡単な分数にしよう）'
+                        : a + '/' + d1 + ' - ' + b + '/' + d2 + ' = ?（答えをいちばん簡単な分数にしよう）';
+                } else {
+                    const d1 = rand(2, 8), d2 = rand(2, 8);
+                    const a = rand(1, d1 - 1), b = rand(1, d2 - 1);
+                    if (Math.random() < .5) {
+                        setFractionAnswer(a * b, d1 * d2);
+                        topicPrompt = a + '/' + d1 + ' × ' + b + '/' + d2 + ' = ?（答えをいちばん簡単な分数にしよう）';
+                    } else {
+                        setFractionAnswer(a * d2, d1 * b);
+                        topicPrompt = a + '/' + d1 + ' ÷ ' + b + '/' + d2 + ' = ?（答えをいちばん簡単な分数にしよう）';
+                    }
+                }
+                return;
+            }
+
+            if (topic === 'decimal') {
+                let a, b, scale, operator;
+                if (grade === 3) {
+                    scale = 10; topicDecimalPlaces = 1;
+                    a = rand(1, 99); b = rand(1, 99); operator = Math.random() < .5 ? '+' : '-';
+                    if (operator === '-' && a < b) [a, b] = [b, a];
+                } else if (grade === 4) {
+                    scale = 100; topicDecimalPlaces = 2;
+                    a = rand(10, 999); b = rand(1, 999);
+                    operator = Math.random() < .6 ? (Math.random() < .5 ? '+' : '-') : (Math.random() < .5 ? '×' : '÷');
+                    if (operator === '-' && a < b) [a, b] = [b, a];
+                    if (operator === '×') {
+                        const decimalTenths = rand(1, 99), wholeNumber = rand(2, 9);
+                        num1 = decimalTenths / 10; num2 = wholeNumber;
+                        currentAns = (decimalTenths * wholeNumber) / 10;
+                        topicDecimalPlaces = 1;
+                        topicPrompt = decimalText(num1, 1) + ' × ' + wholeNumber + ' = ?';
+                        return;
+                    }
+                    if (operator === '÷') {
+                        const quotientTenths = rand(1, 99), wholeNumber = rand(2, 9);
+                        num1 = (quotientTenths * wholeNumber) / 10; num2 = wholeNumber;
+                        currentAns = quotientTenths / 10;
+                        topicDecimalPlaces = 1;
+                        topicPrompt = decimalText(num1, 1) + ' ÷ ' + wholeNumber + ' = ?';
+                        return;
+                    }
+                } else {
+                    topicDecimalPlaces = 2;
+                    const isDivision = Math.random() < .35;
+                    if (isDivision) {
+                        const quotientTenths = rand(2, 99), divisorTenths = rand(2, 9);
+                        num1 = (quotientTenths * divisorTenths) / 100;
+                        num2 = divisorTenths / 10;
+                        currentAns = quotientTenths / 10;
+                        topicPrompt = decimalText(num1, 2) + ' ÷ ' + decimalText(num2, 1) + ' = ?';
+                        return;
+                    }
+                    if (Math.random() < .5) {
+                        const firstTenths = rand(1, 99), secondTenths = rand(1, 99);
+                        num1 = firstTenths / 10; num2 = secondTenths / 10;
+                        currentAns = num1 * num2;
+                        topicPrompt = decimalText(num1, 1) + ' × ' + decimalText(num2, 1) + ' = ?';
+                        return;
+                    }
+                    scale = 100;
+                    a = rand(1, 999); b = rand(1, 999); operator = Math.random() < .5 ? '+' : '-';
+                    if (operator === '-' && a < b) [a, b] = [b, a];
+                }
+                num1 = a / scale; num2 = b / scale;
+                const result = operator === '+' ? a + b : operator === '-' ? a - b : operator === '×' ? a * b / scale : a / b;
+                currentAns = result / scale;
+                if (operator === '×') currentAns = a * b / (scale * scale);
+                if (operator === '÷') currentAns = a / b;
+                topicPrompt = decimalText(num1, topicDecimalPlaces) + ' ' + operator + ' ' + decimalText(num2, topicDecimalPlaces) + ' = ?';
+                return;
+            }
+
+            if (topic === 'unit') {
+                if (grade === 1) {
+                    const shortLength = rand(2, 6), difference = rand(1, 5);
+                    currentAns = difference;
+                    topicAnswerSuffix = 'こ分';
+                    topicPrompt = '赤いひもは、ものさしのます目で' + shortLength + 'こ分。青いひもは' + (shortLength + difference) + 'こ分。青いひもは何こ分長い？';
+                } else {
+                    const conversions = [
+                        { from: 'cm', to: 'mm', factor: 10, direction: 'smaller' },
+                        { from: 'm', to: 'cm', factor: 100, direction: 'smaller' },
+                        { from: 'mm', to: 'cm', factor: 10, direction: 'larger' },
+                        { from: 'cm', to: 'm', factor: 100, direction: 'larger' },
+                        { from: 'L', to: 'dL', factor: 10, direction: 'smaller' },
+                        { from: 'dL', to: 'L', factor: 10, direction: 'larger' }
+                    ];
+                    if (grade >= 3) conversions.push(
+                        { from: 'km', to: 'm', factor: 1000, direction: 'smaller' },
+                        { from: 'kg', to: 'g', factor: 1000, direction: 'smaller' },
+                        { from: 'g', to: 'kg', factor: 1000, direction: 'larger' },
+                        { from: '分', to: '秒', factor: 60, direction: 'smaller' },
+                        { from: '秒', to: '分', factor: 60, direction: 'larger' }
+                    );
+                    if (grade >= 4) conversions.push(
+                        { from: 'm²', to: 'cm²', factor: 10000, direction: 'smaller' },
+                        { from: 'cm²', to: 'm²', factor: 10000, direction: 'larger' }
+                    );
+                    if (grade >= 5) conversions.push(
+                        { from: 'm³', to: 'cm³', factor: 1000000, direction: 'smaller' },
+                        { from: 'cm³', to: 'm³', factor: 1000000, direction: 'larger' }
+                    );
+                    const conversion = conversions[rand(0, conversions.length - 1)];
+                    const amount = rand(1, 9);
+                    if (conversion.direction === 'smaller') {
+                        currentAns = amount * conversion.factor;
+                        topicPrompt = amount + conversion.from + ' は何' + conversion.to + '？';
+                    } else {
+                        currentAns = amount;
+                        topicPrompt = amount * conversion.factor + conversion.from + ' は何' + conversion.to + '？';
+                    }
+                    topicAnswerSuffix = conversion.to;
+                }
+                return;
+            }
+
+            if (topic === 'shape') {
+                if (grade === 1) {
+                    const shapes = [{ name: '三角形', corners: 3 }, { name: '四角形', corners: 4 }, { name: 'まる', corners: 0 }];
+                    const shape = shapes[rand(0, shapes.length - 1)];
+                    currentAns = shape.corners; topicAnswerSuffix = 'こ';
+                    topicPrompt = shape.name + 'のかどは何こ？';
+                } else if (grade === 2) {
+                    if (Math.random() < .5) {
+                        currentAns = 4; topicAnswerSuffix = 'こ';
+                        topicPrompt = '長方形のかどは何こ？';
+                    } else {
+                        currentAns = 4; topicAnswerSuffix = '本';
+                        topicPrompt = '正方形の同じ長さの辺は何本？';
+                    }
+                } else if (grade === 3) {
+                    const kind = rand(0, 2);
+                    if (kind === 0) { currentAns = 2; topicAnswerSuffix = '本'; topicPrompt = '二等辺三角形の同じ長さの辺は何本？'; }
+                    else if (kind === 1) { currentAns = 3; topicAnswerSuffix = '本'; topicPrompt = '正三角形の同じ長さの辺は何本？'; }
+                    else { currentAns = 2; topicAnswerSuffix = '本'; topicPrompt = '直径は半径の何本分？'; }
+                } else if (grade === 4) {
+                    const height = rand(2, 9), width = rand(2, 9);
+                    if (Math.random() < .35) {
+                        currentAns = 90; topicAnswerSuffix = '°'; topicPrompt = '直角は何度？';
+                    } else {
+                        currentAns = height * width; topicAnswerSuffix = 'cm²';
+                        topicPrompt = 'たて' + height + 'cm、よこ' + width + 'cmの長方形の面積は何cm²？';
+                    }
+                } else if (grade === 5) {
+                    const kind = rand(0, 2);
+                    const base = rand(2, 9) * 2, height = rand(2, 9);
+                    if (kind === 0) {
+                        currentAns = base * height / 2; topicAnswerSuffix = 'cm²';
+                        topicPrompt = '底辺' + base + 'cm、高さ' + height + 'cmの三角形の面積は何cm²？';
+                    } else if (kind === 1) {
+                        currentAns = base * height; topicAnswerSuffix = 'cm²';
+                        topicPrompt = '底辺' + base + 'cm、高さ' + height + 'cmの平行四辺形の面積は何cm²？';
+                    } else {
+                        const length = rand(2, 8), width = rand(2, 8), depth = rand(2, 8);
+                        currentAns = length * width * depth; topicAnswerSuffix = 'cm³';
+                        topicPrompt = 'たて' + length + 'cm、よこ' + width + 'cm、高さ' + depth + 'cmの直方体の体積は何cm³？';
+                    }
+                } else {
+                    if (Math.random() < .55) {
+                        const radius = rand(2, 9);
+                        currentAns = Math.round(3.14 * radius * radius * 100) / 100;
+                        topicDecimalPlaces = 2; topicAnswerSuffix = 'cm²';
+                        topicPrompt = '半径' + radius + 'cmの円の面積は何cm²？（円周率は3.14）';
+                    } else {
+                        const radius = rand(2, 6), height = rand(2, 8);
+                        currentAns = Math.round(3.14 * radius * radius * height * 100) / 100;
+                        topicDecimalPlaces = 2; topicAnswerSuffix = 'cm³';
+                        topicPrompt = '底面の半径' + radius + 'cm、高さ' + height + 'cmの円柱の体積は何cm³？（円周率は3.14）';
+                    }
+                }
+            }
+        }
+
+        function buildTopicOptions() {
+            const answers = [currentAns];
+            const wholeOffsets = [1, -1, 2, -2, 3, -3, 5, -5, 10, -10];
+            const decimalStep = 1 / Math.pow(10, topicDecimalPlaces);
+            let attempts = 0;
+            while (answers.length < 4 && attempts < 100) {
+                attempts++;
+                const offsetList = topicDecimalPlaces > 0 ? [decimalStep, -decimalStep, decimalStep * 2, -decimalStep * 2, decimalStep * 5, -decimalStep * 5, 1, -1] : wholeOffsets;
+                const offset = offsetList[rand(0, offsetList.length - 1)];
+                const candidate = topicDecimalPlaces > 0
+                    ? Math.round((currentAns + offset) * Math.pow(10, topicDecimalPlaces)) / Math.pow(10, topicDecimalPlaces)
+                    : currentAns + offset;
+                if (candidate >= 0 && !answers.some(answer => Math.abs(answer - candidate) < 0.0001)) answers.push(candidate);
+            }
+            while (answers.length < 4) answers.push(currentAns + answers.length + 1);
+            for (let i = answers.length - 1; i > 0; i--) {
+                const j = rand(0, i);
+                [answers[i], answers[j]] = [answers[j], answers[i]];
+            }
+            currentOptions = answers.map(answer => ({ answer }));
+            currentOptions.forEach((option, index) => {
+                const label = topicDecimalPlaces > 0 ? option.answer.toFixed(topicDecimalPlaces) + topicAnswerSuffix : option.answer + topicAnswerSuffix;
+                document.getElementById(`choice-${index}`).innerText = label;
+            });
+        }
+
+        function generateQuestion() {
+            hasMistaked = false;
+            currentInput = "";
+            hissanInputs = [];
+            hissanFocus = 0;
+            hissanMaxFocus = 0;
+
+            let op = operations[Math.floor(Math.random() * operations.length)];
+            currentTopic = '';
+            topicPrompt = '';
+            topicAnswerSuffix = '';
+            topicDecimalPlaces = 0;
+
+            if (!arithmeticOps.includes(op)) {
+                generateTopicQuestion(op);
+                if (currentMode === 'normal') displayTopicQuestion();
+                else displaySearchTopicQuestion();
+                return;
+            }
+            
+            if (grade === 1 && (op === 'mul' || op === 'div')) op = 'add';
+            if (grade === 2 && op === 'div') op = 'mul';
+
+            if (op === 'add') {
+                currentOpStr = '+';
+                if (grade === 1) { 
+                    num1 = rand(1, 9); num2 = rand(1, 9); isHissan = false; 
+                } else if (grade === 2) { 
+                    num1 = rand(10, 99); num2 = rand(10, 99); isHissan = true; 
+                } else if (grade === 3) { 
+                    num1 = rand(100, 999); num2 = rand(100, 999); isHissan = true; 
+                } else { 
+                    num1 = rand(1000, 9999); num2 = rand(1000, 9999); isHissan = true; 
+                }
+                currentAns = num1 + num2;
+
+            } else if (op === 'sub') {
+                currentOpStr = '-';
+                if (grade === 1) { 
+                    num1 = rand(10, 19); num2 = rand(1, 9); 
+                    if (num1 < num2) [num1, num2] = [num2, num1];
+                    isHissan = false; 
+                }
+                else if (grade === 2) { 
+                    num1 = rand(10, 99); num2 = rand(10, num1); isHissan = true; 
+                }
+                else if (grade === 3) { 
+                    num1 = rand(100, 999); num2 = rand(100, num1); isHissan = true; 
+                }
+                else { 
+                    num1 = rand(1000, 9999); num2 = rand(1000, num1); isHissan = true; 
+                }
+                currentAns = num1 - num2;
+
+            } else if (op === 'mul') {
+                currentOpStr = '×';
+                if (grade <= 2) { 
+                    num1 = rand(1, 9); num2 = rand(1, 9); isHissan = false; 
+                }
+                else if (grade === 3) { 
+                    num1 = rand(10, 99); num2 = rand(1, 9); isHissan = true; 
+                }
+                else if (grade === 4) { 
+                    num1 = rand(10, 99); num2 = rand(10, 99); isHissan = true; 
+                }
+                else { 
+                    num1 = rand(100, 999); num2 = rand(10, 99); isHissan = true; 
+                }
+                currentAns = num1 * num2;
+
+            } else if (op === 'div') {
+                currentOpStr = '÷';
+                if (grade <= 3) {
+                    num2 = rand(1, 9); currentAns = rand(1, 9); num1 = num2 * currentAns;
+                } else if (grade === 4) {
+                    num2 = rand(1, 9); currentAns = rand(10, 99); num1 = num2 * currentAns;
+                } else {
+                    num2 = rand(10, 99); currentAns = rand(10, 99); num1 = num2 * currentAns;
+                }
+                isHissan = false; 
+            }
+
+            if (isHissan) {
+                // 入力欄は答えの桁数に合わせ、1の位から上の桁へ進めます
+                hissanMaxFocus = currentAns.toString().length - 1;
+                for (let i = 0; i <= hissanMaxFocus; i++) hissanInputs.push("");
+            }
+
+            if (currentMode === 'normal') displayNormalQuestion();
+            else displaySearchQuestion(op);
+        }
+
+        function displayNormalQuestion() {
+            document.getElementById('topic-question').classList.add('hidden');
+            document.getElementById('topic-answer-area').classList.add('hidden');
+            document.getElementById('decimal-key').classList.add('hidden');
+            if (isHissan) {
+                document.getElementById('hissan-area').classList.remove('hidden');
+                document.getElementById('hissan-area').classList.add('flex');
+                document.getElementById('yoko-area').classList.add('hidden');
+                
+                document.getElementById('hissan-num1').innerHTML = formatDigits(num1);
+                document.getElementById('hissan-op').innerText = currentOpStr;
+                document.getElementById('hissan-num2').innerHTML = formatDigits(num2);
+            } else {
+                document.getElementById('yoko-area').classList.remove('hidden');
+                document.getElementById('hissan-area').classList.add('hidden');
+                document.getElementById('hissan-area').classList.remove('flex');
+                document.getElementById('yoko-num1').innerText = num1;
+                document.getElementById('yoko-op').innerText = currentOpStr;
+                document.getElementById('yoko-num2').innerText = num2;
+            }
+            updateDisplay();
+        }
+
+        function displayTopicQuestion() {
+            document.getElementById('hissan-area').classList.add('hidden');
+            document.getElementById('hissan-area').classList.remove('flex');
+            document.getElementById('yoko-area').classList.add('hidden');
+            document.getElementById('topic-question').innerText = topicPrompt;
+            document.getElementById('topic-question').classList.remove('hidden');
+            document.getElementById('topic-answer-area').classList.remove('hidden');
+            document.getElementById('topic-answer-suffix').innerText = topicAnswerSuffix;
+            document.getElementById('decimal-key').classList.toggle('hidden', topicDecimalPlaces === 0);
+            updateDisplay();
+        }
+
+        function displaySearchQuestion(op) {
+            document.getElementById('search-instruction').classList.remove('hidden');
+            document.getElementById('search-target-ans').classList.remove('hidden');
+            document.getElementById('search-topic-prompt').classList.add('hidden');
+            document.getElementById('search-question-subtitle').innerText = 'になる しきは どれ？';
+            document.getElementById('search-target-ans').innerText = currentAns;
+            
+            let options = [];
+            options.push({ n1: num1, n2: num2, op: currentOpStr });
+
+            // ダミー選択肢の難易度を学年に合わせる
+            while (options.length < 4) {
+                let dNum1, dNum2, dOpStr = currentOpStr;
+                
+                if (op === 'add') {
+                    dNum1 = grade === 1 ? rand(1,9) : (grade===2 ? rand(10,99) : rand(100,999));
+                    dNum2 = grade === 1 ? rand(1,9) : (grade===2 ? rand(10,99) : rand(100,999));
+                } else if (op === 'sub') {
+                    dNum1 = grade === 1 ? rand(10,19) : (grade===2 ? rand(10,99) : rand(100,999));
+                    dNum2 = rand(1, dNum1-1);
+                } else if (op === 'mul') {
+                    if(grade <= 2){ dNum1=rand(1,9); dNum2=rand(1,9); }
+                    else if(grade===3){ dNum1=rand(10,99); dNum2=rand(1,9); }
+                    else { dNum1=rand(10,99); dNum2=rand(10,99); }
+                } else {
+                    let maxAns = grade <= 3 ? 9 : 99;
+                    let minAns = grade <= 3 ? 1 : 10;
+                    let maxDiv = grade <= 4 ? 9 : 99;
+                    dNum2 = rand(1, maxDiv);
+                    let ans = rand(minAns, maxAns);
+                    dNum1 = dNum2 * ans;
+                }
+                
+                const candidateAnswer = dOpStr === '+' ? dNum1 + dNum2
+                    : dOpStr === '-' ? dNum1 - dNum2
+                    : dOpStr === '×' ? dNum1 * dNum2
+                    : dNum1 / dNum2;
+                if (candidateAnswer !== currentAns && !options.some(opt => opt.n1 === dNum1 && opt.n2 === dNum2 && opt.op === dOpStr)) {
+                    options.push({ n1: dNum1, n2: dNum2, op: dOpStr });
+                }
+            }
+
+            // シャッフル
+            for (let i = options.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [options[i], options[j]] = [options[j], options[i]];
+            }
+            currentOptions = options;
+            for (let i = 0; i < 4; i++) {
+                document.getElementById(`choice-${i}`).innerText = `${options[i].n1} ${options[i].op} ${options[i].n2}`;
+            }
+        }
+
+        function displaySearchTopicQuestion() {
+            document.getElementById('search-instruction').classList.add('hidden');
+            document.getElementById('search-target-ans').classList.add('hidden');
+            document.getElementById('search-topic-prompt').innerText = topicPrompt;
+            document.getElementById('search-topic-prompt').classList.remove('hidden');
+            document.getElementById('search-question-subtitle').innerText = 'こたえは どれ？';
+            buildTopicOptions();
+        }
+
+        function typeNum(num) {
+            playSound('click');
+            if (currentMode === 'normal') {
+                if (isHissan) {
+                    let currentStr = hissanInputs[hissanFocus] || "";
+                    if (currentStr.length === 0) {
+                        hissanInputs[hissanFocus] = num.toString();
+                        if (hissanFocus < hissanMaxFocus) hissanFocus++; // 左の桁へ進む
+                    }
+                    updateDisplay();
+                } else {
+                    const fractionDigits = currentInput.includes('.') ? currentInput.split('.')[1].length : 0;
+                    const hasTooManyDecimalDigits = topicDecimalPlaces > 0 && currentInput.includes('.') && fractionDigits >= topicDecimalPlaces;
+                    if (currentInput.length < 8 && !hasTooManyDecimalDigits) {
+                        currentInput += num.toString();
+                        updateDisplay();
+                    }
+                }
+            }
+        }
+
+        function typeDecimal() {
+            if (currentMode !== 'normal' || topicDecimalPlaces === 0 || currentInput.includes('.')) return;
+            playSound('click');
+            currentInput = currentInput ? `${currentInput}.` : '0.';
+            updateDisplay();
+        }
+
+        function clearNum() {
+            playSound('click');
+            if (currentMode === 'normal') {
+                if (isHissan) {
+                    let currentStr = hissanInputs[hissanFocus] || "";
+                    if (currentStr.length > 0) {
+                        hissanInputs[hissanFocus] = currentStr.slice(0, -1);
+                    } else if (hissanFocus > 0) {
+                        hissanFocus--;
+                        let prevStr = hissanInputs[hissanFocus] || "";
+                        hissanInputs[hissanFocus] = prevStr.slice(0, -1);
+                    }
+                } else {
+                    if (currentInput.length > 0) {
+                        currentInput = currentInput.slice(0, -1);
+                    }
+                }
+                updateDisplay();
+            }
+        }
+
+        function updateDisplay() {
+            if (currentTopic) {
+                document.getElementById('topic-answer-value').innerText = currentInput;
+                const hint = document.getElementById('hissan-input-hint');
+                if (hint) hint.innerText = topicDecimalPlaces > 0
+                    ? '数字と「. 小数点」ボタンで答えを入れてね'
+                    : '答えの数字を入れてね';
+                return;
+            }
+            if (isHissan) {
+                let html = "";
+                // Display from left (max focus) to right (focus 0)
+                for (let i = hissanMaxFocus; i >= 0; i--) {
+                    let val = hissanInputs[i] || "";
+                    const activeClass = i === hissanFocus && val === "" ? " is-current" : "";
+                    html += `<span class="digit-box hissan-answer-digit${activeClass}${val ? ' text-blue-600' : ''}">${val || '&nbsp;'}</span>`;
+                }
+                document.getElementById('hissan-ans').innerHTML = html;
+                const hint = document.getElementById('hissan-input-hint');
+                if (hint) {
+                    const allFilled = hissanInputs.every(value => value !== "");
+                    hint.innerText = allFilled
+                        ? '数字が全部入ったよ。「OK」を押してね！'
+                        : hissanFocus === hissanMaxFocus
+                            ? `さいごの数字！ ${getHissanPlaceName(hissanFocus)} に入れてね`
+                            : `${getHissanPlaceName(hissanFocus)} から入れてね。最後は上のくらいへ進むよ`;
+                }
+            } else {
+                document.getElementById('yoko-ans').innerText = currentInput;
+                const hint = document.getElementById('hissan-input-hint');
+                if (hint) hint.innerText = 'こたえの数字を入れてね';
+            }
+        }
+
+        function checkNormalAnswer() {
+            let finalInput = "";
+            if (isHissan) {
+                // 左の桁から結合して数値化
+                for (let i = hissanMaxFocus; i >= 0; i--) finalInput += (hissanInputs[i] || "");
+            } else {
+                finalInput = currentInput;
+            }
+
+            if (finalInput === "") return;
+            
+            const enteredAnswer = Number(finalInput);
+            if (Number.isFinite(enteredAnswer) && Math.abs(enteredAnswer - currentAns) < 0.0001) {
+                playSound('correct');
+                if (!hasMistaked) score += 10;
+                nextQuestion();
+            } else {
+                playSound('wrong');
+                hasMistaked = true;
+                showExplanation(); 
+            }
+        }
+
+        function checkSearchAnswer(index) {
+            const selected = currentOptions[index];
+            let evalAns;
+            if (currentTopic) evalAns = selected.answer;
+            else if (selected.op === '+') evalAns = selected.n1 + selected.n2;
+            else if (selected.op === '-') evalAns = selected.n1 - selected.n2;
+            else if (selected.op === '×') evalAns = selected.n1 * selected.n2;
+            else evalAns = selected.n1 / selected.n2;
+
+            if (Math.abs(evalAns - currentAns) < 0.0001) {
+                playSound('correct');
+                if (!hasMistaked) score += 10;
+                nextQuestion();
+            } else {
+                playSound('wrong');
+                hasMistaked = true;
+                showExplanationSearch(selected, evalAns); 
+            }
+        }
+
+        function showExplanation() {
+            document.getElementById('explanation-text').innerHTML = currentTopic
+                ? `もういちど もんだいを<br>よんでみよう！`
+                : `もういちど けいさん<br>してみよう！`;
+            document.getElementById('explanation-modal').classList.remove('hidden');
+        }
+
+        function showExplanationSearch(selected, evalAns) {
+            document.getElementById('explanation-text').innerHTML = currentTopic
+                ? `その こたえは<br><span class="text-5xl text-blue-600 font-bold mt-2 inline-block">${topicDecimalPlaces > 0 ? evalAns.toFixed(topicDecimalPlaces) + topicAnswerSuffix : `${evalAns}${topicAnswerSuffix}`}</span><br>だったよ！<br>もういちど えらんでみよう！`
+                : `えらんだ しき の こたえは<br><span class="text-5xl text-blue-600 font-bold mt-2 inline-block">${evalAns}</span><br>だったよ！<br>ちがう しきを さがそう！`;
+            document.getElementById('explanation-modal').classList.remove('hidden');
+        }
+
+        function closeExplanation() {
+            playSound('click');
+            document.getElementById('explanation-modal').classList.add('hidden');
+            
+            // 入力リセット
+            currentInput = "";
+            if (isHissan) {
+                for (let i = 0; i <= hissanMaxFocus; i++) hissanInputs[i] = "";
+                hissanFocus = 0;
+            }
+            updateDisplay();
+        }
+
+        function endGame() {
+            playSound('clear');
+            showScreen('result-screen');
+
+            document.getElementById('final-score').innerText = score;
+            
+            const maxScore = totalQuestions * 10;
+            const msgEl = document.getElementById('score-msg');
+            const rewardArea = document.getElementById('sticker-reward-area');
+            
+            if (score === maxScore) {
+                msgEl.innerText = "パーフェクト！てんさいだね！ ✨";
+                msgEl.className = "text-green-500 font-bold text-2xl mb-6";
+                
+                // シール付与
+                const newSticker = rareStickers[Math.floor(Math.random() * rareStickers.length)];
+                myStickers.push(newSticker, characterStickerId);
+                saveStickers();
+
+                const rewardSticker = document.getElementById('reward-sticker');
+                rewardSticker.innerHTML = '';
+                const characterImage = document.createElement('img');
+                characterImage.src = characterStickerImage;
+                characterImage.alt = 'ミミ・トト・リリーのキャラクターシール';
+                characterImage.className = 'character-sticker-image';
+                rewardSticker.appendChild(characterImage);
+                const bonusSticker = document.createElement('span');
+                bonusSticker.innerText = newSticker;
+                rewardSticker.appendChild(bonusSticker);
+                rewardArea.classList.remove('hidden');
+            } else {
+                msgEl.innerText = score >= maxScore * 0.8 ? "すごい！あともうすこし！" : "がんばったね！つぎはもっととれるよ！";
+                msgEl.className = score >= maxScore * 0.8 ? "text-blue-500 font-bold text-2xl mb-6" : "text-orange-500 font-bold text-2xl mb-6";
+                rewardArea.classList.add('hidden');
+            }
+        }
+
+        function showStickers(fromScreen) {
+            playSound('click');
+            if(fromScreen) previousScreen = fromScreen;
+            showScreen('sticker-screen');
+
+            const grid = document.getElementById('sticker-grid');
+            grid.innerHTML = '';
+            
+            if (myStickers.length === 0) {
+                document.getElementById('no-sticker-msg').classList.remove('hidden');
+            } else {
+                document.getElementById('no-sticker-msg').classList.add('hidden');
+                myStickers.forEach(sticker => {
+                    const el = document.createElement('div');
+                    el.className = "text-5xl md:text-6xl text-center bg-white rounded-2xl p-4 border-2 border-gray-200 shadow-sm flex items-center justify-center";
+                    el.style.aspectRatio = "1/1";
+                    if (sticker === characterStickerId) {
+                        const image = document.createElement('img');
+                        image.src = characterStickerImage;
+                        image.alt = 'ミミ・トト・リリーのキャラクターシール';
+                        image.className = 'character-sticker-image';
+                        el.appendChild(image);
+                    } else {
+                        el.innerText = sticker;
+                    }
+                    grid.appendChild(el);
+                });
+            }
+        }
+
+        function closeStickers() {
+            showScreen(previousScreen);
+        }
+
+        scheduleTitleActions();
+    </script>
+</body>
+</html>
