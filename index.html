@@ -511,6 +511,12 @@
         .sticker-art.gemini-art { aspect-ratio: 1 / 1; background-size: 300% 200%; background-color: #fff; }
         .sticker-name { font-size: clamp(10px, 2.8vw, 14px); line-height: 1.25; font-weight: 900; color: #663923; min-height: 2.5em; margin-top: 3px; }
         .sticker-card.locked .sticker-name { color: #5f5b55; }
+        .sticker-card.gold-sticker { border-color: #d7a628; background: linear-gradient(145deg, #fff7c9, #ffe49b); box-shadow: 0 5px 0 #ae7622, 0 0 14px #f9d86a; }
+        .sticker-card.gold-sticker .sticker-name { color: #79500a; }
+        .sticker-card.gold-sticker.locked { filter: none; opacity: .76; }
+        .sticker-card.gold-sticker.locked .sticker-art { filter: grayscale(1) brightness(1.08); }
+        .sticker-art.gold-art { aspect-ratio: 1 / 1; background-size: 300% 200%; background-color: white; }
+        .sticker-section-title { grid-column: 1 / -1; color: #88521b; font-size: 1.2rem; font-weight: 900; padding: 12px 4px 2px; }
         #reward-sticker { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; }
         #reward-sticker .sticker-card { width: min(180px, 42vw); animation: none; }
         #sticker-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
@@ -651,6 +657,9 @@
                         <button class="op-btn btn-3d btn-gray py-3 rounded-xl font-bold text-lg" data-val="decimal">小数</button>
                         <button class="op-btn btn-3d btn-gray py-3 rounded-xl font-bold text-lg" data-val="unit">単位</button>
                         <button class="op-btn btn-3d btn-gray py-3 rounded-xl font-bold text-lg" data-val="shape">図形</button>
+                        <button class="op-btn btn-3d btn-gray py-3 rounded-xl font-bold text-lg" data-val="formula">公式・文章題</button>
+                        <button class="op-btn btn-3d btn-gray py-3 rounded-xl font-bold text-lg" data-val="number">数のしくみ</button>
+                        <button class="op-btn btn-3d btn-gray py-3 rounded-xl font-bold text-lg" data-val="data">表とグラフ</button>
                     </div>
                     <p class="text-center text-sm text-blue-700 font-bold mt-3">1つ以上選んでね。選んだ内容からランダムに出ます。うすいボタンは、まだ習わない内容です。</p>
                 </div>
@@ -665,6 +674,7 @@
                     </div>
                 </div>
                 <button onclick="showStickers('setup-screen')" class="w-full py-4 rounded-2xl btn-3d btn-yellow setup-stickers font-bold text-xl">📔 シールちょうを見る</button>
+                <p class="text-center text-sm font-bold text-[#794632]">満点でシール1まい。2回つづけて満点なら、金色シールを1まい！</p>
                 
                 <div class="pt-4 pb-8">
                     <button onclick="startGame()" class="w-full py-5 text-3xl font-bold rounded-2xl btn-3d btn-orange shadow-lg">はじめる！ ✏️</button>
@@ -910,6 +920,9 @@
         
         let currentQuestion = 0;
         let score = 0;
+        let recentQuestionKeys = [];
+        let recentFormats = [];
+        let lastOperation = '';
         let hasMistaked = false; // 1回でも間違えたか
         let answerLocked = false;
         
@@ -946,7 +959,7 @@
                 const saved = JSON.parse(localStorage.getItem(settingsKey) || '{}');
                 if ([1,2,3,4,5,6].includes(saved.grade)) grade = saved.grade;
                 if (Array.isArray(saved.operations)) {
-                    const valid = ['add','sub','mul','div','clock','fraction','decimal','unit','shape'];
+                    const valid = ['add','sub','mul','div','clock','fraction','decimal','unit','shape','formula','number','data'];
                     operations = [...new Set(saved.operations.filter(item => valid.includes(item)))];
                 }
                 if ([5,10,20].includes(saved.totalQuestions)) totalQuestions = saved.totalQuestions;
@@ -1001,9 +1014,10 @@
 
         function updateOperationAvailability() {
             const allowed = grade === 1 ? ['add', 'sub'] : grade === 2 ? ['add', 'sub', 'mul'] : ['add', 'sub', 'mul', 'div'];
-            const topicAllowed = new Set(['clock', 'unit', 'shape']);
+            const topicAllowed = new Set(['clock', 'unit', 'shape', 'number', 'data']);
             if (grade >= 2) topicAllowed.add('fraction');
             if (grade >= 3) topicAllowed.add('decimal');
+            if (grade >= 4) topicAllowed.add('formula');
             operations = operations.filter(op => arithmeticOps.includes(op) ? allowed.includes(op) : topicAllowed.has(op));
             if (operations.length === 0) operations = ['add'];
             document.querySelectorAll('.op-btn').forEach(btn => {
@@ -1019,8 +1033,6 @@
             });
         }
 
-        const characterStickerId = 'character-trio';
-        const characterStickerImage = './assets/character_sticker_trio.jpeg';
         const stickerCatalog = [
             [0, 'ミミとトトのつみき'], [1, 'リリーと葉っぱ'], [2, 'ミミのいちご'],
             [3, 'トトの石あつめ'], [4, 'トトの石ならべ'], [5, 'リリーのどんぐり'],
@@ -1040,13 +1052,25 @@
             ['みんなのゴール', 3, 4]
         ].map(([name, sheet, index], i) => ({ id: `gemini-${String(i + 1).padStart(2, '0')}`, name, sheet, index })));
 
+        const goldStickerCatalog = [
+            ['ミミの黄金コンパス',1,0], ['トトの星の本',1,1], ['リリーの金色の花',1,2],
+            ['ミミとトトの宝箱',1,3], ['ミミとリリーの星',1,4], ['みんなの金色トロフィー',1,5],
+            ['ミミの金色気球',2,0], ['トトの天体望遠鏡',2,1], ['リリーと金色の蝶',2,2],
+            ['ミミとリリーの宝石橋',2,3], ['トトとリリーの星地図',2,4], ['みんなの金色の虹',2,5],
+            ['ミミの流れ星',3,0], ['トトのひみつの時計',3,1], ['リリーの光る月',3,2],
+            ['ミミとトトの金貨',3,3], ['ミミとリリーの花畑',3,4], ['みんなの星のお城',3,5],
+            ['ミミの王冠',4,0], ['みんなの大冒険',4,1]
+        ].map(([name, sheet, index], i) => ({ id: `gold-${String(i + 1).padStart(2, '0')}`, name, sheet, index, gold: true }));
+
         function makeStickerCard(sticker, unlocked) {
             const card = document.createElement('div');
-            card.className = `sticker-card${unlocked ? '' : ' locked'}`;
+            card.className = `sticker-card${sticker.gold ? ' gold-sticker' : ''}${unlocked ? '' : ' locked'}`;
             const art = document.createElement('div');
-            art.className = `sticker-art${sticker.sheet ? ' gemini-art' : ''}`;
+            art.className = `sticker-art${sticker.gold ? ' gold-art' : sticker.sheet ? ' gemini-art' : ''}`;
             if (sticker.sheet) {
-                art.style.backgroundImage = `url('./assets/gemini_stickers_0${sticker.sheet}.jpg')`;
+                art.style.backgroundImage = sticker.gold
+                    ? `url('./assets/gold_stickers_0${sticker.sheet}.jpg')`
+                    : `url('./assets/gemini_stickers_0${sticker.sheet}.jpg')`;
                 art.style.backgroundPosition = `${(sticker.index % 3) * 50}% ${Math.floor(sticker.index / 3) * 100}%`;
             } else {
                 art.style.backgroundPosition = `${(sticker.index % 6) * 20}% ${Math.floor(sticker.index / 6) * 50}%`;
@@ -1061,8 +1085,9 @@
             return card;
         }
 
-        function takeNewSticker() {
-            const remaining = stickerCatalog.filter(sticker => !myStickers.includes(sticker.id));
+        function takeNewSticker(gold = false) {
+            const catalog = gold ? goldStickerCatalog : stickerCatalog;
+            const remaining = catalog.filter(sticker => !myStickers.includes(sticker.id));
             if (!remaining.length) return null;
             const chosen = remaining[Math.floor(Math.random() * remaining.length)];
             myStickers.push(chosen.id);
@@ -1071,7 +1096,13 @@
         function loadStickers() {
             try {
                 const saved = JSON.parse(localStorage.getItem('mathStickers') || '[]');
-                return Array.isArray(saved) ? saved.filter(item => typeof item === 'string') : [];
+                if (!Array.isArray(saved)) return [];
+                const validIds = new Set([...stickerCatalog, ...goldStickerCatalog].map(sticker => sticker.id));
+                const cleaned = [...new Set(saved.filter(id => validIds.has(id)))];
+                if (cleaned.length !== saved.length) {
+                    try { localStorage.setItem('mathStickers', JSON.stringify(cleaned)); } catch (_) { /* 保存できなくても表示は続けられます */ }
+                }
+                return cleaned;
             } catch (_) {
                 return [];
             }
@@ -1082,6 +1113,8 @@
         }
 
         let myStickers = loadStickers();
+        const perfectStreakKey = 'mathAdventurePerfectStreakV1';
+        let perfectStreak = localStorage.getItem(perfectStreakKey) === '1' ? 1 : 0;
 
         // 画面切り替え関数
         function showScreen(screenId) {
@@ -1118,6 +1151,7 @@
         }
 
         function inputStartsFromSmallest() {
+            if (!currentTopic && num1 < 10 && num2 < 10) return false;
             return currentTopic === 'decimal' || (!currentTopic && currentOpStr !== '÷');
         }
 
@@ -1308,6 +1342,9 @@
             playSound('click');
             currentQuestion = 0;
             score = 0;
+            recentQuestionKeys = [];
+            recentFormats = [];
+            lastOperation = '';
             answerLocked = false;
             
             document.getElementById('total-q-num').innerText = totalQuestions;
@@ -1348,6 +1385,7 @@
 
         // 乱数生成ヘルパー
         function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+        function questionLevel() { return Math.min(3, Math.floor(4 * Math.max(0, currentQuestion - 1) / Math.max(1, totalQuestions - 1))); }
 
         function formatClockTime(totalMinutes) {
             const hour = Math.floor(totalMinutes / 60);
@@ -1410,6 +1448,58 @@
 
         function visualMarkup(data) {
             if (!data) return '';
+            if (data.kind === 'number') {
+                const frame = (body) => `<svg viewBox="0 0 440 215" aria-hidden="true" style="font-family:sans-serif;font-weight:800"><rect x="12" y="10" width="416" height="192" rx="20" fill="#fff8e9" stroke="#eaa15d" stroke-width="3"/>${body}</svg>`;
+                if (data.mode === 'place') {
+                    const digits = String(data.value).split('');
+                    const labels = data.labels;
+                    const w = Math.min(78, 350 / digits.length), left = 220 - w * digits.length / 2;
+                    return frame(`<text x="220" y="40" text-anchor="middle" fill="#773e2c" font-size="21">位ごとに 数を見よう</text>${digits.map((digit, i) => `<rect x="${left+i*w}" y="67" width="${w-3}" height="75" rx="8" fill="#fff0d0" stroke="#d88149" stroke-width="2"/><text x="${left+i*w+w/2-2}" y="115" text-anchor="middle" fill="#275141" font-size="36">${digit}</text><text x="${left+i*w+w/2-2}" y="172" text-anchor="middle" fill="#773e2c" font-size="${labels[i].length > 2 ? 15 : 18}">${labels[i]}</text>`).join('')}`);
+                }
+                if (data.mode === 'sequence') return frame(`<text x="220" y="46" text-anchor="middle" fill="#773e2c" font-size="21">左から じゅんに 数えよう</text>${data.values.map((v,i) => `<circle cx="${70+i*75}" cy="108" r="28" fill="${v === '?' ? '#ffe37b' : '#f7c48c'}" stroke="#c9673d" stroke-width="3"/><text x="${70+i*75}" y="119" text-anchor="middle" fill="#275141" font-size="27">${v}</text>`).join('')}<path d="M70 160h300" stroke="#d98c56" stroke-width="4"/>`);
+                if (data.mode === 'remainder') return frame(`<text x="220" y="42" text-anchor="middle" fill="#773e2c" font-size="21">${data.total}こを ${data.groupSize}こずつ 分ける</text>${Array.from({length:data.total},(_,i)=>`<circle cx="${45+(i%15)*25}" cy="${80+Math.floor(i/15)*30}" r="9" fill="${i < data.total-data.remainder ? '#ffab69' : '#79c7a6'}" stroke="#ae6947" stroke-width="2"/>`).join('')}<text x="220" y="185" text-anchor="middle" fill="#773e2c" font-size="18">みどりは あまった数</text>`);
+                if (data.mode === 'round') return frame(`<text x="220" y="43" text-anchor="middle" fill="#773e2c" font-size="19">${data.value}は どちらに近い？</text><path d="M65 125h310" stroke="#ad6240" stroke-width="5"/><path d="M65 112v28m155-28v28m155-28v28" stroke="#ad6240" stroke-width="4"/><circle cx="${65+310*(data.value-data.lower)/(data.upper-data.lower)}" cy="125" r="11" fill="#f36f53"/><text x="65" y="170" text-anchor="middle" font-size="19">${data.lower}</text><text x="220" y="170" text-anchor="middle" font-size="19">${data.middle}</text><text x="375" y="170" text-anchor="middle" font-size="19">${data.upper}</text>`);
+                if (data.mode === 'factors') return frame(`<text x="220" y="48" text-anchor="middle" fill="#773e2c" font-size="21">${data.value}この ならべ方</text>${Array.from({length:data.rows},(_,r)=>Array.from({length:data.cols},(_,c)=>`<circle cx="${220-(data.cols-1)*16+c*32}" cy="${70+r*22}" r="9" fill="#f3aa66" stroke="#a35b3e" stroke-width="2"/>`).join('')).join('')}<text x="220" y="190" text-anchor="middle" fill="#773e2c" font-size="18">${data.rows}行に 同じ数ずつ</text>`);
+                if (data.mode === 'multiples') return frame(`<text x="220" y="48" text-anchor="middle" fill="#773e2c" font-size="21">${data.step}ずつ ふえる 数</text>${Array.from({length:5},(_,i)=>`<circle cx="${66+i*77}" cy="111" r="27" fill="${i===data.target?'#ffe37b':'#f7c48c'}" stroke="#c9673d" stroke-width="3"/><text x="${66+i*77}" y="121" text-anchor="middle" fill="#275141" font-size="25">${i===data.target?'?':(i+1)*data.step}</text>`).join('')}`);
+                if (data.mode === 'expression') return frame(`<text x="220" y="50" text-anchor="middle" fill="#773e2c" font-size="21">文字に 数を入れてみよう</text><rect x="100" y="74" width="240" height="76" rx="14" fill="#ffe4ab" stroke="#bf7549" stroke-width="3"/><text x="220" y="125" text-anchor="middle" fill="#275141" font-size="33">${data.factor} × x ＋ ${data.add}</text><text x="220" y="185" text-anchor="middle" fill="#773e2c" font-size="21">x ＝ ${data.x}</text>`);
+            }
+            if (data.kind === 'data') {
+                const title = `<text x="220" y="30" text-anchor="middle" fill="#773e2c" font-size="19" font-weight="900">${escapeHTML(data.title)}</text>`;
+                let body = '';
+                if (data.mode === 'pictures') body = data.values.map((n,i)=>`<text x="35" y="${77+i*43}" fill="#773e2c" font-size="18">${data.labels[i]}</text>${Array.from({length:n},(_,j)=>`<circle cx="${146+j*28}" cy="${71+i*43}" r="10" fill="${['#f49b70','#80cdb6','#f8cd69'][i]}" stroke="#aa6847" stroke-width="2"/>`).join('')}`).join('');
+                if (data.mode === 'table') body = data.values.map((n,i)=>`<rect x="52" y="${47+i*48}" width="330" height="42" rx="6" fill="${i%2 ? '#fff0d5' : '#ffe3b4'}"/><text x="98" y="${76+i*48}" text-anchor="middle" fill="#773e2c" font-size="19">${data.labels[i]}</text><text x="297" y="${76+i*48}" text-anchor="middle" fill="#275141" font-size="24">${n}</text>`).join('');
+                if (data.mode === 'twoWay') body = `<path d="M50 80h340M50 126h340M50 172h340M150 42v130M260 42v130M390 42v130M50 42v130" stroke="#bf8056" stroke-width="2"/><text x="205" y="69" text-anchor="middle" font-size="18">読書</text><text x="324" y="69" text-anchor="middle" font-size="18">運動</text><text x="99" y="112" text-anchor="middle" font-size="18">男子</text><text x="99" y="158" text-anchor="middle" font-size="18">女子</text>${data.values.map((row,r)=>row.map((n,c)=>`<text x="${205+c*119}" y="${112+r*46}" text-anchor="middle" fill="#275141" font-size="23">${n}</text>`).join('')).join('')}`;
+                if (data.mode === 'bars') body = `<path d="M57 173h325M57 45v128" stroke="#a85d42" stroke-width="4"/>${data.values.map((n,i)=>`<rect x="${86+i*83}" y="${173-n*118/Math.max(...data.values)}" width="48" height="${n*118/Math.max(...data.values)}" fill="${['#ef9366','#8ccdb6','#f7cb6d'][i]}" stroke="#a85d42" stroke-width="2"/><text x="${110+i*83}" y="${165-n*118/Math.max(...data.values)}" text-anchor="middle" fill="#773e2c" font-size="17">${n}</text><text x="${110+i*83}" y="196" text-anchor="middle" fill="#773e2c" font-size="17">${data.labels[i]}</text>`).join('')}`;
+                if (data.mode === 'line') {
+                    const scale=100/Math.max(...data.values);
+                    body = `<path d="M60 165h320M60 52v113" stroke="#a85d42" stroke-width="4"/><path d="${data.values.map((n,i)=>`${i?'L':'M'}${83+i*92} ${165-n*scale}`).join(' ')}" fill="none" stroke="#eb754e" stroke-width="5"/>${data.values.map((n,i)=>`<circle cx="${83+i*92}" cy="${165-n*scale}" r="7" fill="#fff1b6" stroke="#b65d43" stroke-width="3"/><text x="${83+i*92}" y="${151-n*scale}" text-anchor="middle" fill="#773e2c" font-size="17">${n}°</text><text x="${83+i*92}" y="191" text-anchor="middle" fill="#773e2c" font-size="17">${data.labels[i]}</text>`).join('')}`;
+                }
+                if (data.mode === 'band') body = `<rect x="55" y="79" width="330" height="65" fill="#fff0d5" stroke="#a85d42" stroke-width="3"/>${data.values.reduce((a,n,i)=>{const x=a.x; a.s+=`<rect x="${x}" y="79" width="${330*n/100}" height="65" fill="${['#ef9366','#8ccdb6','#f7cb6d'][i]}" stroke="#a85d42" stroke-width="2"/><text x="${x+165*n/100}" y="118" text-anchor="middle" fill="#4a352a" font-size="18">${n}%</text>`;a.x+=330*n/100;return a;},{x:55,s:''}).s}<text x="220" y="181" text-anchor="middle" fill="#773e2c" font-size="17">${data.labels.join(' ・ ')}</text>`;
+                if (data.mode === 'circlePercent') {
+                    const angle=2*Math.PI*data.red/100, x=220+72*Math.sin(angle), y=120-72*Math.cos(angle);
+                    body=`<circle cx="220" cy="120" r="72" fill="#8ccdb6" stroke="#a85d42" stroke-width="3"/><path d="M220 120 L220 48 A72 72 0 ${data.red>50?1:0} 1 ${x} ${y} Z" fill="#ef9366" stroke="#a85d42" stroke-width="2"/><text x="336" y="85" fill="#773e2c" font-size="17">赤 ${data.red}%</text><text x="336" y="112" fill="#773e2c" font-size="17">青 ？%</text>${data.total ? `<text x="220" y="198" text-anchor="middle" fill="#773e2c" font-size="18">全体 ${data.total}人</text>` : ''}`;
+                }
+                if (data.mode === 'dotplot') body = `<path d="M70 170h300" stroke="#a85d42" stroke-width="4"/>${data.values.map((n,i)=>`<text x="${95+i*70}" y="194" text-anchor="middle" fill="#773e2c" font-size="17">${data.labels[i]}</text>${Array.from({length:n},(_,j)=>`<circle cx="${95+i*70}" cy="${149-j*25}" r="9" fill="#ef9366" stroke="#a85d42" stroke-width="2"/>`).join('')}`).join('')}`;
+                if (data.mode === 'combinations') body = `<text x="220" y="65" text-anchor="middle" fill="#773e2c" font-size="20">上の服 ${data.shirts}色 × ズボン ${data.pants}色</text>${Array.from({length:data.shirts},(_,i)=>`<rect x="${220-(data.shirts-1)*31+i*62-21}" y="88" width="43" height="34" rx="9" fill="${['#f18d72','#83c9bb','#f7cd6b','#caa9e8','#75bce4'][i]}" stroke="#a85d42" stroke-width="2"/>`).join('')}${Array.from({length:data.pants},(_,i)=>`<rect x="${220-(data.pants-1)*31+i*62-21}" y="136" width="43" height="37" rx="6" fill="${['#b9a8db','#80b8d9','#f4bc81','#9fc5a6','#f2a5b6'][i]}" stroke="#a85d42" stroke-width="2"/>`).join('')}`;
+                return `<svg viewBox="0 0 440 215" aria-hidden="true" style="font-family:sans-serif;font-weight:800"><rect x="10" y="7" width="420" height="199" rx="19" fill="#fff8e9" stroke="#eaa15d" stroke-width="3"/>${title}${body}</svg>`;
+            }
+            if (data.kind === 'formula') {
+                const heading = `<text x="220" y="28" text-anchor="middle" fill="#8c4629" font-size="19" font-weight="900">${data.rule}</text>`;
+                let drawing = '';
+                if (data.mode === 'perimeter') drawing = `<rect x="103" y="62" width="230" height="105" rx="5" fill="#ffe197" stroke="#a85632" stroke-width="5"/><text x="220" y="194" text-anchor="middle">${data.width}cm</text><text x="342" y="119">${data.height}cm</text><path d="M103 62h230v105H103z" fill="none" stroke="#e46c40" stroke-width="3" stroke-dasharray="10 7"/>`;
+                if (data.mode === 'squareArea') drawing = `<rect x="155" y="51" width="130" height="130" fill="#ffe197" stroke="#a85632" stroke-width="5"/><path d="M198 51v130m44-130v130M155 94h130m-130 44h130" stroke="#d98a47" stroke-width="2"/><text x="220" y="205" text-anchor="middle">1辺 ${data.side}cm</text>`;
+                if (data.mode === 'angle') drawing = `<polygon points="220,53 77,174 364,174" fill="#ffe197" stroke="#a85632" stroke-width="5"/><text x="206" y="88">${data.a}°</text><text x="112" y="160">${data.b}°</text><text x="305" y="160">？°</text>`;
+                if (data.mode === 'trapezoid') drawing = `<polygon points="162,65 278,65 363,171 78,171" fill="#ffe197" stroke="#a85632" stroke-width="5"/><path d="M162 65v106" stroke="#e46c40" stroke-width="3" stroke-dasharray="7 6"/><text x="220" y="58" text-anchor="middle">上底 ${data.top}cm</text><text x="220" y="199" text-anchor="middle">下底 ${data.bottom}cm</text><text x="171" y="125">高さ ${data.height}cm</text>`;
+                if (data.mode === 'speed') drawing = `<path d="M67 150h309" stroke="#a85632" stroke-width="6"/><path d="M67 136v29m309-29v29" stroke="#a85632" stroke-width="5"/><text x="220" y="93" text-anchor="middle" font-size="23">道のり ${data.distance}km</text><text x="220" y="185" text-anchor="middle">時間 ${data.hours}時間</text>`;
+                if (data.mode === 'percent') drawing = `<rect x="65" y="83" width="310" height="64" rx="8" fill="#fff2d0" stroke="#a85632" stroke-width="4"/><rect x="65" y="83" width="${Math.round(310 * data.percent / 100)}" height="64" rx="8" fill="#ffc961"/><text x="220" y="74" text-anchor="middle">全体 ${data.whole}こ</text><text x="220" y="178" text-anchor="middle">色の部分は ${data.percent}%</text>`;
+                if (data.mode === 'ratio') drawing = `<rect x="45" y="84" width="150" height="58" rx="12" fill="#ffcd78"/><rect x="245" y="84" width="150" height="58" rx="12" fill="#f9aabb"/><text x="120" y="121" text-anchor="middle">${data.a} こ</text><text x="320" y="121" text-anchor="middle">${data.b} こ</text><text x="220" y="176" text-anchor="middle">同じ比で ${data.factor}倍</text>`;
+                if (data.mode === 'proportion') drawing = `<path d="M80 174L360 59" stroke="#d66d43" stroke-width="5"/><circle cx="150" cy="145" r="9" fill="#248680"/><circle cx="290" cy="88" r="9" fill="#248680"/><text x="150" y="185" text-anchor="middle">${data.x1}こ → ${data.y1}こ</text><text x="290" y="76" text-anchor="middle">${data.x2}こ → ？こ</text>`;
+                if (data.mode === 'scale') drawing = `<rect x="95" y="76" width="86" height="62" fill="#ffe197" stroke="#a85632" stroke-width="4"/><rect x="246" y="62" width="130" height="94" fill="#ffd06e" stroke="#a85632" stroke-width="4"/><text x="138" y="178" text-anchor="middle">もとの長さ ${data.length}cm</text><text x="310" y="178" text-anchor="middle">${data.factor}倍の図</text>`;
+                if (data.mode === 'circumference') drawing = `<circle cx="220" cy="114" r="69" fill="#ffe197" stroke="#a85632" stroke-width="5"/><path d="M151 114h138" stroke="#d66d43" stroke-width="4"/><text x="220" y="107" text-anchor="middle">直径 ${data.diameter}cm</text><text x="220" y="205" text-anchor="middle">円の まわりの長さ</text>`;
+                if (data.mode === 'inverse') drawing = `<rect x="60" y="77" width="130" height="68" rx="11" fill="#ffcd78"/><rect x="250" y="77" width="130" height="68" rx="11" fill="#9dd5bc"/><text x="125" y="119" text-anchor="middle">${data.people}人</text><text x="315" y="119" text-anchor="middle">${data.days}日</text><text x="220" y="181" text-anchor="middle">人数×日数は同じ</text>`;
+                if (data.mode === 'mixed') drawing = `<rect x="52" y="70" width="336" height="84" rx="15" fill="#ffe2a3" stroke="#a85632" stroke-width="3"/><text x="220" y="123" text-anchor="middle" font-size="30">(${data.a}＋${data.b})×${data.factor}</text><text x="220" y="191" text-anchor="middle">かっこの中から 計算しよう</text>`;
+                return `<svg class="formula-diagram" viewBox="0 0 440 215" aria-hidden="true" style="font-size:19px;font-weight:900;fill:#763922">${heading}${drawing}</svg>`;
+            }
             if (data.kind === 'fraction') {
                 const bar = (top, bottom, y, label, color = '#f38a47') => {
                     const count = Math.min(bottom, 40), width = 300 / count;
@@ -1491,6 +1581,13 @@
                 case 'cuboid': drawing = `<path d="M95 70l70-42h196l-70 42zM95 70h196v116H95zM291 70l70-42v116l-70 42z" fill="${fill}" stroke="${stroke}" stroke-width="5" stroke-linejoin="round"/>${text(193,207,`よこ ${data.width}cm`)}${text(371,109,`高さ ${data.depth}cm`,'start')}${text(154,25,`たて ${data.length}cm`)}`; break;
                 case 'areaCircle': drawing = `<circle cx="220" cy="106" r="84" fill="${fill}" stroke="${stroke}" stroke-width="6"/>${line(220,106,304,106)}<circle cx="220" cy="106" r="5" fill="${stroke}"/>${text(262,94,`${data.radius}cm`)}`; break;
                 case 'cylinder': drawing = `<path d="M138 56v110a82 25 0 0 0 164 0V56" fill="${fill}" stroke="${stroke}" stroke-width="5"/><ellipse cx="220" cy="56" rx="82" ry="25" fill="#ffe5aa" stroke="${stroke}" stroke-width="5"/><ellipse cx="220" cy="166" rx="82" ry="25" fill="none" stroke="${stroke}" stroke-width="5"/>${line(220,56,302,56)}${text(261,50,`${data.radius}cm`)}${text(325,118,`${data.height}cm`,'start')}`; break;
+                case 'rightTriangle': drawing = `<polygon points="105,175 105,40 340,175" fill="${fill}" stroke="${stroke}" stroke-width="6"/><path d="M105 150h25v25" fill="none" stroke="${guide}" stroke-width="4"/>`; break;
+                case 'rhombus': drawing = `<polygon points="220,22 360,108 220,194 80,108" fill="${fill}" stroke="${stroke}" stroke-width="6"/>${line(80,108,360,108,true)}${line(220,22,220,194,true)}`; break;
+                case 'trapezoid': drawing = `<polygon points="155,45 285,45 370,175 70,175" fill="${fill}" stroke="${stroke}" stroke-width="6"/>${line(155,45,285,45)}${line(70,175,370,175)}`; break;
+                case 'symmetry': drawing = `<polygon points="220,20 355,165 260,165 220,198 180,165 85,165" fill="${fill}" stroke="${stroke}" stroke-width="6"/>${line(220,14,220,205,true)}${text(276,33,'対称の軸')}`; break;
+                case 'box': drawing = `<path d="M100 65l65-36h190l-65 36zM100 65h190v117H100zM290 65l65-36v117l-65 36z" fill="${fill}" stroke="${stroke}" stroke-width="5" stroke-linejoin="round"/>${text(220,205,'面の数を 数えよう')}`; break;
+                case 'hexagon': drawing = `<polygon points="146,38 294,38 362,108 294,178 146,178 78,108" fill="${fill}" stroke="${stroke}" stroke-width="6"/>${text(220,205,'同じ長さの辺')}`; break;
+                case 'triangularPrism': drawing = `<path d="M102 152l80-112 93 112zM182 40l68-22 93 112-68 22zM275 152l68-22-93-112-68 22z" fill="${fill}" stroke="${stroke}" stroke-width="5" stroke-linejoin="round"/>${text(210,205,`底面 ${data.baseArea}cm² ・ 高さ ${data.height}cm`)}`; break;
             }
             return `<svg viewBox="0 0 440 215" aria-hidden="true">${drawing}</svg>`;
         }
@@ -1504,12 +1601,273 @@
         }
 
         function generateTopicQuestion(topic) {
+            const level = questionLevel();
             currentTopic = topic;
             isHissan = false;
             topicAnswerSuffix = '';
             topicDecimalPlaces = 0;
             fractionAnswerNumerator = 0;
             fractionAnswerDenominator = 1;
+
+            if (topic === 'number') {
+                if (grade === 1) {
+                    if (Math.random() < .5) {
+                        const step = level >= 2 ? 2 : 1, start = rand(1, level >= 2 ? 9 : 14), missing = rand(1, 3);
+                        currentAns = start + missing * step;
+                        topicPrompt = '「？」に入る数はいくつ？';
+                        topicVisual = {kind:'number',mode:'sequence',values:Array.from({length:5},(_,i)=>i===missing?'?':start+i*step)};
+                    } else {
+                        const tens = rand(1, 9), ones = rand(0, 9);
+                        currentAns = level >= 2 ? tens + ones : level === 1 ? tens : ones;
+                        topicPrompt = level >= 2 ? `${tens * 10 + ones}の十の位と一の位の数字をたすと？` : `${tens * 10 + ones}の${level === 1 ? '十' : '一'}の位の数字は？`;
+                        topicVisual = {kind:'number',mode:'place',value:tens*10+ones,labels:['十の位','一の位'],target:1};
+                    }
+                } else if (grade === 2) {
+                    const hundreds = rand(1, 9), tens = rand(0, 9), ones = rand(0, 9), target = rand(0, 2);
+                    const value=hundreds*100+tens*10+ones;
+                    if (level === 0) {
+                        currentAns=[hundreds*100,tens*10,ones][target];
+                        topicPrompt=`${value}の${['百','十','一'][target]}の位が表す数は？`;
+                    } else if (level === 1) {
+                        currentAns=hundreds+tens;
+                        topicPrompt=`${value}の百の位と十の位の数字をたすと？`;
+                    } else if (level === 2) {
+                        currentAns=value-100;
+                        topicPrompt=`${value}から100をひくと？`;
+                    } else {
+                        currentAns=ones*100+tens*10+hundreds;
+                        topicPrompt=`${value}の百の位と一の位の数字を入れかえると、いくつ？`;
+                    }
+                    topicVisual = {kind:'number',mode:'place',value:hundreds*100+tens*10+ones,labels:['百の位','十の位','一の位'],target};
+                } else if (grade === 3) {
+                    if (Math.random() < .5) {
+                        const groupSize = rand(2+Math.min(level,2), 6+Math.min(level,2)), groups = rand(2, 3+level), remainder = rand(1, groupSize-1), total = groupSize*groups+remainder;
+                        currentAns = level >= 2 ? groups : remainder; topicAnswerSuffix = level >= 2 ? '組' : 'こ';
+                        topicPrompt = level >= 2 ? `${total}こを${groupSize}こずつ分けると、何組できる？` : `${total}こを${groupSize}こずつ分けると、あまりは何こ？`;
+                        topicVisual = {kind:'number',mode:'remainder',total,groupSize,remainder};
+                    } else {
+                        const value = rand(1,9)*10000+rand(0,9)*1000+rand(0,9)*100+rand(0,9)*10+rand(0,9), target=rand(0,4);
+                        const digit=Number(String(value)[target]);
+                        currentAns = level >= 2 ? digit * 10 ** (4-target) : digit;
+                        topicPrompt = `${value.toLocaleString('ja-JP')}の${['万','千','百','十','一'][target]}の位が表す${level >= 2 ? '数' : '数字'}は？`;
+                        topicVisual = {kind:'number',mode:'place',value,labels:['万','千','百','十','一'],target};
+                    }
+                } else if (grade === 4) {
+                    if (level > 0 || Math.random()<.5) {
+                        const unit=[10,100,1000][Math.min(2, Math.max(0, level-1))], lower=rand(2,10+level*5)*unit, offset=rand(1,unit-1), value=lower+offset, upper=lower+unit;
+                        currentAns=offset<unit/2?lower:upper;
+                        topicPrompt=`${value}を${{10:'十',100:'百',1000:'千'}[unit]}の位まで四捨五入すると？`;
+                        topicVisual={kind:'number',mode:'round',value,lower,upper,middle:lower+unit/2};
+                    } else {
+                        const value=rand(1,9)*100000+rand(0,9)*10000+rand(0,9)*1000+rand(0,9)*100+rand(0,9)*10+rand(0,9),target=rand(0,5);
+                        currentAns=Number(String(value)[target]);
+                        topicPrompt=`${value.toLocaleString('ja-JP')}の${['十万','万','千','百','十','一'][target]}の位の数字は？`;
+                        topicVisual={kind:'number',mode:'place',value,labels:['十万','万','千','百','十','一'],target};
+                    }
+                } else if (grade === 5) {
+                    const kind=rand(0,1);
+                    if (kind===0) {
+                        const rows=rand(2,Math.min(5,4+level)), cols=rand(2,6+level), value=rows*cols;
+                        currentAns=cols;
+                        topicPrompt=`${value}こを${rows}行に同じ数ずつ並べると、1行は何こ？（約数を考えよう）`;
+                        topicAnswerSuffix='こ';
+                        topicVisual={kind:'number',mode:'factors',rows,cols,value};
+                    } else if (kind===1) {
+                        const step=rand(2+level,8+level),target=rand(1,3);
+                        currentAns=(target+1)*step;
+                        topicPrompt=`${step}の倍数を順に並べると「？」は何？`;
+                        topicVisual={kind:'number',mode:'multiples',step,target};
+                    }
+                } else {
+                    const factor=rand(2+level,5+level*2), x=rand(2+level,6+level*3), add=rand(1+level,5+level*5);
+                    currentAns=factor*x+add;
+                    topicPrompt=`x=${x}のとき、${factor}×x＋${add}の値は？`;
+                    topicVisual={kind:'number',mode:'expression',factor,x,add};
+                }
+                return;
+            }
+
+            if (topic === 'data') {
+                if (grade === 1) {
+                    const values=[rand(2,5+Math.min(level,2)),rand(2,5+Math.min(level,2)),rand(2,5+Math.min(level,2))], target=rand(0,2), labels=['りんご','みかん','ぶどう'];
+                    const other=(target+rand(1,2))%3;
+                    if (level === 0) { currentAns=values[target]; topicPrompt=`絵の表で${labels[target]}は何こ？`; }
+                    else if (level === 1) { currentAns=values[target]+values[other]; topicPrompt=`${labels[target]}と${labels[other]}を合わせると何こ？`; }
+                    else if (level === 2) { currentAns=Math.abs(values[target]-values[other]); topicPrompt=`${labels[target]}と${labels[other]}の数のちがいは何こ？`; }
+                    else { currentAns=values.reduce((sum,n)=>sum+n,0); topicPrompt='くだものは全部で何こ？'; }
+                    topicAnswerSuffix='こ';
+                    topicVisual={kind:'data',mode:'pictures',title:'くだものの数（●1つで1こ）',values,labels};
+                } else if (grade === 2) {
+                    const values=[rand(4,12+level*2),rand(4,12+level*2),rand(4,12+level*2)], target=rand(0,2), labels=['赤','青','黄'];
+                    const other=(target+rand(1,2))%3;
+                    if (level === 0) { currentAns=values[target]+values[other]; topicPrompt=`${labels[target]}と${labels[other]}を選んだ人は合わせて何人？`; }
+                    else if (level === 1) { currentAns=Math.abs(values[target]-values[other]); topicPrompt=`${labels[target]}と${labels[other]}を選んだ人数の差は何人？`; }
+                    else if (level === 2) { currentAns=values.reduce((sum,n)=>sum+n,0); topicPrompt='赤・青・黄を選んだ人は全部で何人？'; }
+                    else { currentAns=Math.abs(values[target]+values[other]-values[3-target-other]); topicPrompt=`${labels[target]}と${labels[other]}の合計と、残りの色の人数の差は何人？`; }
+                    topicAnswerSuffix='人';
+                    topicVisual={kind:'data',mode:'table',title:'すきな色を選んだ人数',values,labels};
+                } else if (grade === 3) {
+                    const values=[rand(2,8+level*2),rand(2,8+level*2),rand(2,8+level*2)], target=rand(0,2), labels=['月','火','水'];
+                    const other=(target+rand(1,2))%3;
+                    if (level === 0) { currentAns=values[target]+values[other]; topicPrompt=`${labels[target]}曜日と${labels[other]}曜日を合わせると何人？`; }
+                    else if (level === 1) { currentAns=Math.abs(values[target]-values[other]); topicPrompt=`${labels[target]}曜日と${labels[other]}曜日の人数の差は何人？`; }
+                    else if (level === 2) { currentAns=values.reduce((sum,n)=>sum+n,0); topicPrompt='3日間の合計は何人？'; }
+                    else { currentAns=Math.abs(values[target]+values[other]-values[3-target-other]); topicPrompt=`${labels[target]}曜と${labels[other]}曜の合計と、残りの曜日の人数の差は何人？`; }
+                    topicAnswerSuffix='人';
+                    topicVisual={kind:'data',mode:'bars',title:'図書室に来た人数（1目盛り＝1人）',values,labels};
+                } else if (grade === 4) {
+                    if (Math.random()<.5) {
+                        const first=rand(2,4), values=[first];
+                        for (let i=0;i<3;i++) values.push(values[i]+rand(1,2+level));
+                        const a=rand(0,2);
+                        if (level <= 1) {
+                            currentAns=values[a+1]-values[a];
+                            topicPrompt=`折れ線グラフの${['月','火','水'][a]}曜日から${['火','水','木'][a]}曜日まで、気温は何度上がった？`;
+                        } else {
+                            currentAns=values[3]-values[0];
+                            topicPrompt='月曜日から木曜日まで、気温は合わせて何度上がった？';
+                        }
+                        topicAnswerSuffix='度';
+                        topicVisual={kind:'data',mode:'line',title:'気温の変化（1目盛り＝1度）',values,labels:['月','火','水','木']};
+                    } else {
+                        const values=[[rand(3,12),rand(3,12)],[rand(3,12),rand(3,12)]], target=rand(0,1);
+                        if (level <= 1) {
+                            currentAns=values[0][target]+values[1][target];
+                            topicPrompt=`表で${target===0?'読書':'運動'}を選んだ人は、男子と女子を合わせて何人？`;
+                        } else if (level === 2) {
+                            currentAns=values.flat().reduce((sum,n)=>sum+n,0);
+                            topicPrompt='表の4つの人数を全部合わせると何人？';
+                        } else {
+                            currentAns=Math.abs(values[0][0]+values[0][1]-values[1][0]-values[1][1]);
+                            topicPrompt='男子と女子の人数の差は何人？';
+                        }
+                        topicAnswerSuffix='人';
+                        topicVisual={kind:'data',mode:'twoWay',title:'好きな活動の人数',values};
+                    }
+                } else if (grade === 5) {
+                    const kind=rand(0,2);
+                    if (kind===0) {
+                        const average=rand(6+level,12+level*3), delta=rand(1,3);
+                        const values=level<=1 ? [average-delta,average,average+delta] : [average-delta-1,average+1,average+delta];
+                        currentAns=average; topicAnswerSuffix='こ';
+                        topicPrompt='3日間の数の平均は何こ？';
+                        topicVisual={kind:'data',mode:'bars',title:'1日ごとに集めた数',values,labels:['月','火','水']};
+                    } else if (kind===1) {
+                        const a=[20,25,30,40][rand(0,3)], b=rand(2,4)*10, c=100-a-b;
+                        currentAns=a+b; topicAnswerSuffix='%';
+                        topicPrompt='帯グラフで、赤と青を合わせると何％？';
+                        topicVisual={kind:'data',mode:'band',title:'すきな色の割合',values:[a,b,c],labels:['赤','青','黄']};
+                    } else {
+                        const red=[25,50,75][rand(0,2)];
+                        const total=level>=2?rand(5,12)*4:0;
+                        currentAns=total?total*(100-red)/100:100-red;
+                        topicAnswerSuffix=total?'人':'%';
+                        topicPrompt=total?`円グラフの全体が${total}人。青は何人？`:`円グラフで赤が${red}%なら、青は何％？`;
+                        topicVisual={kind:'data',mode:'circlePercent',title:'赤と青の割合',red,total};
+                    }
+                } else {
+                    if (Math.random()<.5) {
+                        const values=[rand(1,2),rand(2,3+Math.min(level,1)),rand(3,4),rand(1,2+Math.min(level,1))], labels=['1','2','3','4'];
+                        const sorted=values.flatMap((n,i)=>Array(n).fill(i+1));
+                        currentAns=sorted[Math.floor((sorted.length-1)/2)];
+                        if(sorted.length%2===0) currentAns=(sorted[sorted.length/2-1]+sorted[sorted.length/2])/2;
+                        topicDecimalPlaces=1;
+                        topicPrompt='ドットプロットの中央値は？';
+                        topicVisual={kind:'data',mode:'dotplot',title:'得点の分布（●1つで1人）',values,labels};
+                    } else {
+                        const shirts=rand(2,Math.min(5,3+level)),pants=rand(2,Math.min(5,3+level));
+                        currentAns=shirts*pants; topicAnswerSuffix='通り';
+                        topicPrompt=`上の服${shirts}色とズボン${pants}色を1つずつ選ぶと、組み合わせは何通り？`;
+                        topicVisual={kind:'data',mode:'combinations',title:'組み合わせを考えよう',shirts,pants};
+                    }
+                }
+                return;
+            }
+
+            if (topic === 'formula') {
+                if (grade === 4) {
+                    const mode=Math.min(2,level);
+                    if (mode === 0) {
+                        const height = rand(2+level, 7+level*2), width = rand(3+level, 9+level*2);
+                        currentAns = 2 * (height + width);
+                        topicAnswerSuffix = 'cm';
+                        topicPrompt = `たて${height}cm、よこ${width}cmの長方形のまわりの長さは何cm？`;
+                        topicVisual = { kind:'formula', mode:'perimeter', height, width, rule:'まわりの長さ＝(たて＋よこ)×2' };
+                    } else if (mode === 1) {
+                        const side = rand(3+level, 8+level*2);
+                        currentAns = side * side;
+                        topicAnswerSuffix = 'cm²';
+                        topicPrompt = `1辺が${side}cmの正方形の面積は何cm²？`;
+                        topicVisual = { kind:'formula', mode:'squareArea', side, rule:'正方形の面積＝1辺×1辺' };
+                    } else {
+                        const a=rand(3+level,8+level*2), b=rand(3+level,8+level*2), factor=rand(2+level,5+level);
+                        currentAns=(a+b)*factor;
+                        topicPrompt=`(${a}＋${b})×${factor}＝？`;
+                        topicVisual={kind:'formula',mode:'mixed',a,b,factor,rule:'かっこの中を 先に計算する'};
+                    }
+                } else if (grade === 5) {
+                    const mode = level===0?rand(0,3):level===1?rand(0,2):level===2?rand(1,4):rand(2,4);
+                    if (mode === 0) {
+                        const top = rand(3+level, 7+level*2), bottom = top + rand(2, 5+level), height = rand(2+level, 5+level) * 2;
+                        currentAns = (top + bottom) * height / 2;
+                        topicAnswerSuffix = 'cm²';
+                        topicPrompt = `上底${top}cm、下底${bottom}cm、高さ${height}cmの台形の面積は何cm²？`;
+                        topicVisual = { kind:'formula', mode:'trapezoid', top, bottom, height, rule:'台形の面積＝(上底＋下底)×高さ÷2' };
+                    } else if (mode === 1) {
+                        const hours = rand(2+Math.min(level,2), 4+level), speed = rand(20+level*10, 50+level*15), distance = hours * speed;
+                        currentAns = speed;
+                        topicAnswerSuffix = 'km/時';
+                        topicPrompt = `${hours}時間で${distance}km進みました。時速は何km/時？`;
+                        topicVisual = { kind:'formula', mode:'speed', hours, distance, rule:'速さ＝道のり÷時間' };
+                    } else if (mode === 2) {
+                        const whole = rand(4+level*2, 12+level*3) * 20, percent = [10, 20, 25, 50][rand(Math.min(level,2), 3)];
+                        currentAns = whole * percent / 100;
+                        topicAnswerSuffix = 'こ';
+                        topicPrompt = `${whole}この${percent}%は何こ？`;
+                        topicVisual = { kind:'formula', mode:'percent', whole, percent, rule:'比べる量＝もとにする量×割合' };
+                    } else if (mode === 3) {
+                        const a = rand(25, 80), b = rand(25, 80);
+                        currentAns = 180 - a - b;
+                        topicAnswerSuffix = '°';
+                        topicPrompt = `三角形の2つの角が${a}°と${b}°。残りの角は何度？`;
+                        topicVisual = { kind:'formula', mode:'angle', a, b, rule:'三角形の3つの角の和＝180°' };
+                    } else {
+                        const diameter=rand(2+level,7+level*3);
+                        currentAns=Math.round(diameter*3.14*100)/100;
+                        topicDecimalPlaces=2; topicAnswerSuffix='cm';
+                        topicPrompt=`直径${diameter}cmの円周は何cm？（円周率は3.14）`;
+                        topicVisual={kind:'formula',mode:'circumference',diameter,rule:'円周＝直径×円周率'};
+                    }
+                } else {
+                    const mode = level;
+                    if (mode === 0) {
+                        const a = rand(2, 7), b = rand(2, 7), factor = rand(2, 5);
+                        currentAns = b * factor;
+                        topicAnswerSuffix = 'こ';
+                        topicPrompt = `${a}こ対${b}こが同じ比で、${a * factor}こ対何こ？`;
+                        topicVisual = { kind:'formula', mode:'ratio', a, b, factor, rule:'比の両方に同じ数をかける' };
+                    } else if (mode === 1) {
+                        const x1 = rand(2, 8), rate = rand(2, 9), x2 = x1 + rand(2, 8);
+                        currentAns = x2 * rate;
+                        topicAnswerSuffix = 'こ';
+                        topicPrompt = `1こあたり${rate}こ必要です。${x2}こ分では何こ必要？`;
+                        topicVisual = { kind:'formula', mode:'proportion', x1, y1:x1 * rate, x2, rule:'比例：一方が増えると、もう一方も同じ割合で増える' };
+                    } else if (mode === 2) {
+                        const length = rand(2, 9), factor = rand(2, 5);
+                        currentAns = length * factor;
+                        topicAnswerSuffix = 'cm';
+                        topicPrompt = `${length}cmの線分を${factor}倍に拡大すると何cm？`;
+                        topicVisual = { kind:'formula', mode:'scale', length, factor, rule:'拡大した長さ＝もとの長さ×倍率' };
+                    } else {
+                        const people=rand(2,6), days=rand(4,9), newPeople=people*2;
+                        currentAns=days/2; topicAnswerSuffix='日';
+                        topicPrompt=`${people}人で${days}日かかる仕事を${newPeople}人ですると何日？`;
+                        topicDecimalPlaces=1;
+                        topicVisual={kind:'formula',mode:'inverse',people,days,rule:'反比例：人数が2倍なら日数は半分'};
+                    }
+                }
+                return;
+            }
 
             if (topic === 'clock') {
                 if (grade === 1) {
@@ -1554,12 +1912,13 @@
 
             if (topic === 'fraction') {
                 if (grade === 2) {
-                    const denominator = Math.random() < .5 ? 2 : 4;
+                    const denominator = [2,4][rand(0,1)];
+                    const item = ['ケーキ','紙のテープ','チョコレート'][rand(0,2)];
                     setFractionAnswer(1, denominator);
-                    topicPrompt = `ケーキを${denominator}つに同じ大きさで分けました。1つ分は全体の何分のいくつ？`;
+                    topicPrompt = `${item}を${denominator}つに同じ大きさで分けました。1つ分は全体の何分のいくつ？`;
                     topicVisual = { kind: 'fraction', a: 1, d1: denominator };
                 } else if (grade === 3 || grade === 4) {
-                    const denominator = [2, 3, 4, 5, 8, 10][rand(0, 5)];
+                    const denominator = [2, 3, 4, 5, 8, 10][rand(level < 2 ? 0 : 2, level < 2 ? 3 : 5)];
                     const add = Math.random() < .5;
                     let a, b;
                     if (add) {
@@ -1574,7 +1933,7 @@
                         topicPrompt = a + '/' + denominator + ' から ' + b + '/' + denominator + ' をひくと、いくつ？';
                     }
                     topicVisual = { kind: 'fraction', a, d1: denominator, b, d2: denominator, operation: add ? '+' : '-' };
-                    if (grade === 4 && Math.random() < .45) {
+                    if (grade === 4 && level >= 2 && Math.random() < .45) {
                         const baseDenominator = [2, 3, 4, 5][rand(0, 3)];
                         const multiplier = rand(2, 4);
                         const numerator = rand(1, baseDenominator - 1);
@@ -1620,12 +1979,12 @@
                 let a, b, scale, operator;
                 if (grade === 3) {
                     scale = 10; topicDecimalPlaces = 1;
-                    a = rand(1, 99); b = rand(1, 99); operator = Math.random() < .5 ? '+' : '-';
+                    a = rand(1+level*10, 30+level*23); b = rand(1+level*7, 30+level*23); operator = Math.random() < .5 ? '+' : '-';
                     if (operator === '-' && a < b) [a, b] = [b, a];
                 } else if (grade === 4) {
                     scale = 100; topicDecimalPlaces = 2;
-                    a = rand(10, 999); b = rand(1, 999);
-                    operator = Math.random() < .6 ? (Math.random() < .5 ? '+' : '-') : (Math.random() < .5 ? '×' : '÷');
+                    a = rand(10+level*100, 300+level*233); b = rand(1+level*100, 300+level*233);
+                    operator = level < 2 || Math.random() < .35 ? (Math.random() < .5 ? '+' : '-') : (Math.random() < .5 ? '×' : '÷');
                     if (operator === '-' && a < b) [a, b] = [b, a];
                     if (operator === '×') {
                         const decimalTenths = rand(1, 99), wholeNumber = rand(2, 9);
@@ -1647,7 +2006,7 @@
                     }
                 } else {
                     topicDecimalPlaces = 2;
-                    const isDivision = Math.random() < .35;
+                    const isDivision = level >= 2 && Math.random() < .45;
                     if (isDivision) {
                         const quotientTenths = rand(2, 99), divisorTenths = rand(2, 9);
                         num1 = (quotientTenths * divisorTenths) / 100;
@@ -1657,7 +2016,7 @@
                         topicVisual = { kind: 'decimal', a: num1, b: num2, operator: '÷' };
                         return;
                     }
-                    if (Math.random() < .5) {
+                    if (level >= 1 && Math.random() < .5) {
                         const firstTenths = rand(1, 99), secondTenths = rand(1, 99);
                         num1 = firstTenths / 10; num2 = secondTenths / 10;
                         currentAns = num1 * num2;
@@ -1666,7 +2025,7 @@
                         return;
                     }
                     scale = 100;
-                    a = rand(1, 999); b = rand(1, 999); operator = Math.random() < .5 ? '+' : '-';
+                    a = rand(1+level*100, 300+level*233); b = rand(1+level*100, 300+level*233); operator = Math.random() < .5 ? '+' : '-';
                     if (operator === '-' && a < b) [a, b] = [b, a];
                 }
                 num1 = a / scale; num2 = b / scale;
@@ -1681,7 +2040,7 @@
 
             if (topic === 'unit') {
                 if (grade === 1) {
-                    const shortLength = rand(2, 6), difference = rand(1, 5);
+                    const shortLength = rand(2, 4+level), difference = rand(1+Math.min(level,2), 3+level);
                     currentAns = difference;
                     topicAnswerSuffix = 'こ分';
                     topicPrompt = '赤いひもは、ものさしのます目で' + shortLength + 'こ分。青いひもは' + (shortLength + difference) + 'こ分。青いひもは何こ分長い？';
@@ -1711,7 +2070,7 @@
                         { from: 'cm³', to: 'm³', factor: 1000000, direction: 'larger' }
                     );
                     const conversion = conversions[rand(0, conversions.length - 1)];
-                    const amount = rand(1, 9);
+                    const amount = rand(1+level, Math.min(12,4+level*2));
                     if (conversion.direction === 'smaller') {
                         currentAns = amount * conversion.factor;
                         topicPrompt = amount + conversion.from + ' は何' + conversion.to + '？';
@@ -1733,14 +2092,23 @@
                     topicPrompt = shape.name + 'のかどは何こ？';
                     topicVisual = { kind: 'shape', form: shape.name === '三角形' ? 'triangle' : shape.name === '四角形' ? 'square' : 'circle' };
                 } else if (grade === 2) {
-                    if (Math.random() < .5) {
+                    const kind=level===0?rand(0,1):rand(2,3);
+                    if (kind === 0) {
                         currentAns = 4; topicAnswerSuffix = 'こ';
                         topicPrompt = '長方形のかどは何こ？';
                         topicVisual = { kind: 'shape', form: 'rectangle' };
-                    } else {
+                    } else if (kind === 1) {
                         currentAns = 4; topicAnswerSuffix = '本';
                         topicPrompt = '正方形の同じ長さの辺は何本？';
                         topicVisual = { kind: 'shape', form: 'square' };
+                    } else if (kind === 2) {
+                        currentAns = 1; topicAnswerSuffix = 'こ';
+                        topicPrompt = '直角三角形の直角は何こ？';
+                        topicVisual = {kind:'shape',form:'rightTriangle'};
+                    } else {
+                        currentAns=6; topicAnswerSuffix='こ';
+                        topicPrompt='この箱の面は何こ？';
+                        topicVisual={kind:'shape',form:'box'};
                     }
                 } else if (grade === 3) {
                     const kind = rand(0, 2);
@@ -1748,18 +2116,27 @@
                     else if (kind === 1) { currentAns = 3; topicAnswerSuffix = '本'; topicPrompt = '正三角形の同じ長さの辺は何本？'; topicVisual = { kind: 'shape', form: 'equilateral' }; }
                     else { currentAns = 2; topicAnswerSuffix = '本'; topicPrompt = '直径は半径の何本分？'; topicVisual = { kind: 'shape', form: 'diameter' }; }
                 } else if (grade === 4) {
-                    const height = rand(2, 9), width = rand(2, 9);
-                    if (Math.random() < .35) {
+                    const height = rand(2+level, 5+level*2), width = rand(2+level, 5+level*2);
+                    const kind=level===0?rand(0,3):level===1?rand(2,3):1;
+                    if (kind === 0) {
                         currentAns = 90; topicAnswerSuffix = '°'; topicPrompt = '直角は何度？';
                         topicVisual = { kind: 'shape', form: 'rightAngle' };
-                    } else {
+                    } else if (kind === 1) {
                         currentAns = height * width; topicAnswerSuffix = 'cm²';
                         topicPrompt = 'たて' + height + 'cm、よこ' + width + 'cmの長方形の面積は何cm²？';
                         topicVisual = { kind: 'shape', form: 'areaRectangle', height, width };
+                    } else if (kind === 2) {
+                        currentAns = 4; topicAnswerSuffix='本';
+                        topicPrompt='ひし形の同じ長さの辺は何本？';
+                        topicVisual={kind:'shape',form:'rhombus'};
+                    } else {
+                        currentAns=1; topicAnswerSuffix='組';
+                        topicPrompt='台形の平行な辺は何組？';
+                        topicVisual={kind:'shape',form:'trapezoid'};
                     }
                 } else if (grade === 5) {
-                    const kind = rand(0, 2);
-                    const base = rand(2, 9) * 2, height = rand(2, 9);
+                    const kind = level===0?rand(0,3):level===1?rand(0,1):level===2?rand(0,1):2;
+                    const base = rand(2+level, 5+level*2) * 2, height = rand(2+level, 5+level*2);
                     if (kind === 0) {
                         currentAns = base * height / 2; topicAnswerSuffix = 'cm²';
                         topicPrompt = '底辺' + base + 'cm、高さ' + height + 'cmの三角形の面積は何cm²？';
@@ -1768,25 +2145,39 @@
                         currentAns = base * height; topicAnswerSuffix = 'cm²';
                         topicPrompt = '底辺' + base + 'cm、高さ' + height + 'cmの平行四辺形の面積は何cm²？';
                         topicVisual = { kind: 'shape', form: 'parallelogram', base, height };
-                    } else {
-                        const length = rand(2, 8), width = rand(2, 8), depth = rand(2, 8);
+                    } else if (kind === 2) {
+                        const length = rand(2+level, 5+level*2), width = rand(2+level, 5+level*2), depth = rand(2+level, 5+level*2);
                         currentAns = length * width * depth; topicAnswerSuffix = 'cm³';
                         topicPrompt = 'たて' + length + 'cm、よこ' + width + 'cm、高さ' + depth + 'cmの直方体の体積は何cm³？';
                         topicVisual = { kind: 'shape', form: 'cuboid', length, width, depth };
+                    } else {
+                        currentAns=6; topicAnswerSuffix='本';
+                        topicPrompt='正六角形の同じ長さの辺は何本？';
+                        topicVisual={kind:'shape',form:'hexagon'};
                     }
                 } else {
-                    if (Math.random() < .55) {
+                    const kind=level===0?rand(0,2):level===1?0:level===2?3:rand(1,3);
+                    if (kind === 0) {
                         const radius = rand(2, 9);
                         currentAns = Math.round(3.14 * radius * radius * 100) / 100;
                         topicDecimalPlaces = 2; topicAnswerSuffix = 'cm²';
                         topicPrompt = '半径' + radius + 'cmの円の面積は何cm²？（円周率は3.14）';
                         topicVisual = { kind: 'shape', form: 'areaCircle', radius };
-                    } else {
+                    } else if (kind === 1) {
                         const radius = rand(2, 6), height = rand(2, 8);
                         currentAns = Math.round(3.14 * radius * radius * height * 100) / 100;
                         topicDecimalPlaces = 2; topicAnswerSuffix = 'cm³';
                         topicPrompt = '底面の半径' + radius + 'cm、高さ' + height + 'cmの円柱の体積は何cm³？（円周率は3.14）';
                         topicVisual = { kind: 'shape', form: 'cylinder', radius, height };
+                    } else if (kind === 2) {
+                        currentAns=1; topicAnswerSuffix='本';
+                        topicPrompt='この図形の縦方向の対称の軸は何本？';
+                        topicVisual={kind:'shape',form:'symmetry'};
+                    } else {
+                        const baseArea=rand(4,24),height=rand(2,9);
+                        currentAns=baseArea*height; topicAnswerSuffix='cm³';
+                        topicPrompt=`底面積${baseArea}cm²、高さ${height}cmの三角柱の体積は何cm³？`;
+                        topicVisual={kind:'shape',form:'triangularPrism',baseArea,height};
                     }
                 }
             }
@@ -1822,6 +2213,39 @@
         }
 
         function generateQuestion() {
+            let key = '', format = '', operation = '';
+            for (let attempt = 0; attempt < 40; attempt++) {
+                operation = generateQuestionCandidate();
+                key = currentTopic
+                    ? JSON.stringify([currentTopic, topicPrompt, topicVisual, currentAns])
+                    : JSON.stringify([operation, num1, num2, currentAns]);
+                format = currentTopic
+                    ? `${currentTopic}:${topicVisual?.mode || topicVisual?.form || ''}:${topicPrompt.replace(/[0-9０-９]+/g, '#')}`
+                    : operation;
+                const recentExact = currentTopic === 'shape' ? recentQuestionKeys.slice(-1)
+                    : currentTopic === 'fraction' && grade === 2 ? recentQuestionKeys.slice(-4)
+                    : currentTopic === 'clock' && grade === 1 ? recentQuestionKeys.slice(-8)
+                    : recentQuestionKeys;
+                if (recentExact.includes(key) && attempt < 36) continue;
+                if (recentFormats.slice(-2).includes(format) && attempt < 10) continue;
+                if (operations.length > 1 && lastOperation === operation && attempt < 12) continue;
+                break;
+            }
+            recentQuestionKeys.push(key);
+            if (recentQuestionKeys.length > 12) recentQuestionKeys.shift();
+            recentFormats.push(format);
+            if (recentFormats.length > 2) recentFormats.shift();
+            lastOperation = operation;
+            prepareInputSlots();
+            if (currentTopic) {
+                if (currentMode === 'normal') displayTopicQuestion();
+                else displaySearchTopicQuestion();
+            } else if (currentMode === 'normal') displayNormalQuestion();
+            else displaySearchQuestion(operation);
+        }
+
+        function generateQuestionCandidate() {
+            const level = questionLevel();
             hasMistaked = false;
             currentInput = "";
             hissanInputs = [];
@@ -1837,10 +2261,7 @@
 
             if (!arithmeticOps.includes(op)) {
                 generateTopicQuestion(op);
-                prepareInputSlots();
-                if (currentMode === 'normal') displayTopicQuestion();
-                else displaySearchTopicQuestion();
-                return;
+                return op;
             }
             
             if (grade === 1 && (op === 'mul' || op === 'div')) op = 'add';
@@ -1849,66 +2270,77 @@
             if (op === 'add') {
                 currentOpStr = '+';
                 if (grade === 1) { 
-                    num1 = rand(1, 9); num2 = rand(1, 9); isHissan = false; 
+                    if (level === 0) { num1=rand(1,7); num2=rand(1,10-num1); }
+                    else if (level === 1) { do { num1=rand(3,9); num2=rand(2,9); } while (num1+num2<=10); }
+                    else { num1=rand(level===2?10:12, level===2?15:19); num2=rand(1,20-num1); }
+                    isHissan = false;
                 } else if (grade === 2) { 
-                    num1 = rand(10, 99); num2 = rand(10, 99); isHissan = true; 
+                    if (level === 0) { num1=rand(1,4)*10+rand(1,4); num2=rand(1,4)*10+rand(1,5); }
+                    else if (level === 1) { num1=rand(1,3)*10+rand(5,9); num2=rand(1,3)*10+rand(10-num1%10,9); }
+                    else if (level === 2) { num1=rand(20,99); num2=rand(20,99); }
+                    else { num1=rand(100,399); num2=rand(50,99); }
+                    isHissan = true;
                 } else if (grade === 3) { 
-                    num1 = rand(100, 999); num2 = rand(100, 999); isHissan = true; 
+                    num1 = rand(100+level*120, 400+level*199); num2 = rand(100+level*100, 400+level*199); isHissan = true;
                 } else { 
-                    num1 = rand(1000, 9999); num2 = rand(1000, 9999); isHissan = true; 
+                    num1 = rand(1000+level*1300, 4000+level*1999); num2 = rand(1000+level*1100, 4000+level*1999); isHissan = true;
                 }
                 currentAns = num1 + num2;
 
             } else if (op === 'sub') {
                 currentOpStr = '-';
                 if (grade === 1) { 
-                    num1 = rand(10, 19); num2 = rand(1, 9); 
-                    if (num1 < num2) [num1, num2] = [num2, num1];
+                    if (level === 0) { num1=rand(2,9); num2=rand(1,num1); }
+                    else if (level === 1) { num1=rand(11,19); num2=rand(1,num1-10); }
+                    else { num1=rand(level===2?11:15,18); num2=rand(num1-9,9); }
                     isHissan = false; 
                 }
                 else if (grade === 2) { 
-                    num1 = rand(10, 99); num2 = rand(10, num1); isHissan = true; 
+                    if (level === 0) { num1=rand(3,8)*10+rand(5,9); num2=rand(1,2)*10+rand(1,4); }
+                    else if (level === 1) { num1=rand(3,9)*10+rand(0,4); num2=rand(1,Math.floor(num1/10)-1)*10+rand(5,9); }
+                    else if (level === 2) { num1=rand(50,99); num2=rand(10,num1); }
+                    else { num1=rand(200,499); num2=rand(50,99); }
+                    isHissan = true;
                 }
                 else if (grade === 3) { 
-                    num1 = rand(100, 999); num2 = rand(100, num1); isHissan = true; 
+                    num1 = rand(300+level*150, 600+level*133); num2 = rand(100, num1); isHissan = true;
                 }
                 else { 
-                    num1 = rand(1000, 9999); num2 = rand(1000, num1); isHissan = true; 
+                    num1 = rand(3000+level*1800, 6000+level*1333); num2 = rand(1000, num1); isHissan = true;
                 }
                 currentAns = num1 - num2;
 
             } else if (op === 'mul') {
                 currentOpStr = '×';
                 if (grade <= 2) { 
-                    num1 = rand(1, 9); num2 = rand(1, 9); isHissan = false; 
+                    num1 = rand(level < 2 ? 2 : 5, level < 2 ? 5+level*2 : 9); num2 = rand(level < 2 ? 2 : 5, level < 2 ? 5+level*2 : 9); isHissan = false;
                 }
                 else if (grade === 3) { 
-                    num1 = rand(10, 99); num2 = rand(1, 9); isHissan = true; 
+                    num1 = rand(10+level*15, 35+level*21); num2 = rand(2+Math.min(level,3), 5+level); isHissan = true;
                 }
                 else if (grade === 4) { 
-                    num1 = rand(10, 99); num2 = rand(10, 99); isHissan = true; 
+                    num1 = rand(10+level*15, 40+level*19); num2 = rand(10+level*12, 40+level*19); isHissan = true;
                 }
                 else { 
-                    num1 = rand(100, 999); num2 = rand(10, 99); isHissan = true; 
+                    num1 = rand(100+level*130, 350+level*216); num2 = rand(10+level*12, 40+level*19); isHissan = true;
                 }
                 currentAns = num1 * num2;
 
             } else if (op === 'div') {
                 currentOpStr = '÷';
                 if (grade <= 3) {
-                    num2 = rand(1, 9); currentAns = rand(1, 9); num1 = num2 * currentAns;
+                    num2 = rand(2+Math.min(level,3), 5+level);
+                    currentAns = level < 2 ? rand(2,5+level*2) : rand(level===2?10:20,level===2?20:40);
+                    num1 = num2 * currentAns;
                 } else if (grade === 4) {
-                    num2 = rand(1, 9); currentAns = rand(10, 99); num1 = num2 * currentAns;
+                    num2 = rand(2+Math.min(level,3), 6+level); currentAns = level < 3 ? rand(10+level*20,30+level*25) : rand(100,199); num1 = num2 * currentAns;
                 } else {
-                    num2 = rand(10, 99); currentAns = rand(10, 99); num1 = num2 * currentAns;
+                    num2 = rand(10+level*8, 30+level*23); currentAns = level < 3 ? rand(10+level*20,30+level*25) : rand(100,199); num1 = num2 * currentAns;
                 }
                 isHissan = false; 
             }
 
-            prepareInputSlots();
-
-            if (currentMode === 'normal') displayNormalQuestion();
-            else displaySearchQuestion(op);
+            return op;
         }
 
         function displayNormalQuestion() {
@@ -2226,11 +2658,15 @@
             const rewardArea = document.getElementById('sticker-reward-area');
             
             const perfect = score === maxScore;
-            msgEl.innerText = perfect ? 'パーフェクト！ シールを1まいゲット！ ✨'
+            const goldTurn = perfect && perfectStreak === 1;
+            perfectStreak = perfect ? (goldTurn ? 0 : 1) : 0;
+            try { localStorage.setItem(perfectStreakKey, String(perfectStreak)); } catch (_) {}
+            msgEl.innerText = goldTurn ? '2回連続パーフェクト！ 金色シールを1まいゲット！ ✨'
+                : perfect ? 'パーフェクト！ シールを1まいゲット！ つぎも満点なら金色！ ✨'
                 : score >= maxScore * 0.8 ? 'すごい！ あとすこしで パーフェクト！'
                 : 'がんばったね！ パーフェクトで シールをゲットしよう！';
-            msgEl.className = perfect ? 'text-green-500 font-bold text-2xl mb-6' : 'text-orange-500 font-bold text-2xl mb-6';
-            const newSticker = perfect ? takeNewSticker() : null;
+            msgEl.className = goldTurn ? 'text-amber-600 font-bold text-2xl mb-6' : perfect ? 'text-green-500 font-bold text-2xl mb-6' : 'text-orange-500 font-bold text-2xl mb-6';
+            const newSticker = perfect ? takeNewSticker(goldTurn) : null;
             const rewardSticker = document.getElementById('reward-sticker');
             rewardSticker.innerHTML = '';
             if (newSticker) {
@@ -2238,7 +2674,7 @@
                 saveStickers();
                 rewardArea.classList.remove('hidden');
             } else if (perfect) {
-                msgEl.innerText = 'シールを ぜんぶ あつめたね！ ✨';
+                msgEl.innerText = goldTurn ? '金色シールを ぜんぶ あつめたね！ ✨' : 'ふつうのシールを ぜんぶ あつめたね！ ✨';
                 rewardArea.classList.add('hidden');
             } else {
                 rewardArea.classList.add('hidden');
@@ -2253,25 +2689,21 @@
             const grid = document.getElementById('sticker-grid');
             grid.innerHTML = '';
             
-            const collected = stickerCatalog.filter(sticker => myStickers.includes(sticker.id)).length;
-            document.getElementById('sticker-progress').innerText = `${collected} / ${stickerCatalog.length} まい あつめたよ`;
+            const allStickers = [...stickerCatalog, ...goldStickerCatalog];
+            const collected = allStickers.filter(sticker => myStickers.includes(sticker.id)).length;
+            const goldCollected = goldStickerCatalog.filter(sticker => myStickers.includes(sticker.id)).length;
+            document.getElementById('sticker-progress').innerText = `${collected} / ${allStickers.length} まい（金色 ${goldCollected} / ${goldStickerCatalog.length}）`;
             document.getElementById('no-sticker-msg').classList.add('hidden');
+            const normalHeading = document.createElement('div');
+            normalHeading.className = 'sticker-section-title';
+            normalHeading.innerText = 'ふつうのシール';
+            grid.appendChild(normalHeading);
             stickerCatalog.forEach(sticker => grid.appendChild(makeStickerCard(sticker, myStickers.includes(sticker.id))));
-            myStickers.filter(id => !stickerCatalog.some(sticker => sticker.id === id)).forEach(oldSticker => {
-                const card = document.createElement('div');
-                card.className = 'sticker-card';
-                if (oldSticker === characterStickerId) {
-                    const image = document.createElement('img');
-                    image.src = characterStickerImage;
-                    image.alt = '前の版で集めたミミ・トト・リリーのシール';
-                    image.className = 'character-sticker-image';
-                    card.appendChild(image);
-                } else {
-                    card.innerText = oldSticker;
-                    card.style.fontSize = '48px';
-                }
-                grid.appendChild(card);
-            });
+            const goldHeading = document.createElement('div');
+            goldHeading.className = 'sticker-section-title';
+            goldHeading.innerText = '✨ 金色シール（満点2回連続）';
+            grid.appendChild(goldHeading);
+            goldStickerCatalog.forEach(sticker => grid.appendChild(makeStickerCard(sticker, myStickers.includes(sticker.id))));
         }
 
         function closeStickers() {
