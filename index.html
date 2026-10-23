@@ -508,6 +508,7 @@
         .sticker-card { border: 3px solid #f0ba68; border-radius: 18px; padding: 7px; background: #fff8e6; text-align: center; box-shadow: 0 5px 0 #dc9a52; min-width: 0; }
         .sticker-card.locked { filter: grayscale(1); opacity: .56; }
         .sticker-art { width: 100%; aspect-ratio: 230 / 256; background-image: url('./assets/character_badges_18.png'); background-repeat: no-repeat; background-size: 600% 300%; border-radius: 14px; }
+        .sticker-art.base-badge-art { aspect-ratio: 1 / 1; background-size: 600% auto; }
         .sticker-art.gemini-art { aspect-ratio: 1 / 1; background-size: 300% 200%; background-color: #fff; }
         .sticker-name { font-size: clamp(10px, 2.8vw, 14px); line-height: 1.25; font-weight: 900; color: #663923; min-height: 2.5em; margin-top: 3px; }
         .sticker-card.locked .sticker-name { color: #5f5b55; }
@@ -518,6 +519,7 @@
         .sticker-art.gold-art { aspect-ratio: 1 / 1; background-size: 300% 200%; background-color: white; }
         .sticker-art.advanced-art { aspect-ratio: 1 / 1; background-size: 300% 200%; background-color: #fff; }
         .sticker-art.junior-art { aspect-ratio: 1 / 1; background-size: 300% 200%; background-color: #fff; }
+        .sticker-art.junior-art.legacy-junior-art { aspect-ratio: 1 / 1; margin-block: 0; transform: scaleY(0.838); transform-origin: center; }
         #sticker-grade-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 auto 16px; max-width: 720px; }
         .sticker-grade-tab { padding: 10px 4px; border: 2px solid #e8b963; border-radius: 14px; background: #fff6dc; color: #713424; font-weight: 900; box-shadow: 0 3px 0 #d6954f; }
         .sticker-grade-tab.active { background: #f177a7; color: #fff; border-color: #d74787; box-shadow: 0 3px 0 #ac3267; }
@@ -1158,7 +1160,12 @@
             const card = document.createElement('div');
             card.className = `sticker-card${sticker.gold ? ' gold-sticker' : ''}${unlocked ? '' : ' locked'}`;
             const art = document.createElement('div');
-            art.className = `sticker-art${sticker.advanced ? ' advanced-art' : sticker.junior ? ' junior-art' : sticker.gold ? ' gold-art' : sticker.sheet ? ' gemini-art' : ''}`;
+            art.className = `sticker-art${sticker.advanced ? ' advanced-art' : sticker.junior ? ' junior-art' + (sticker.sheet <= 6 ? ' legacy-junior-art' : '') : sticker.gold ? ' gold-art' : sticker.sheet ? ' gemini-art' : ''}`;
+            if (!sticker.sheet) art.classList.add('base-badge-art');
+            if (sticker.junior && sticker.sheet <= 6) {
+                art.style.aspectRatio = '1';
+                art.style.transform = 'scaleY(0.838)';
+            }
             if (sticker.sheet) {
                 art.style.backgroundImage = sticker.advanced
                     ? `url('./assets/advanced_stickers_0${sticker.sheet}${sticker.sheet === 6 ? '_v2' : ''}.jpg')`
@@ -1169,7 +1176,7 @@
                     : `url('./assets/gemini_stickers_0${sticker.sheet}.jpg')`;
                 art.style.backgroundPosition = `${(sticker.index % 3) * 50}% ${Math.floor(sticker.index / 3) * 100}%`;
             } else {
-                art.style.backgroundPosition = `${(sticker.index % 6) * 20}% ${Math.floor(sticker.index / 6) * 50}%`;
+                art.style.backgroundPosition = ((sticker.index % 6) * 20) + '% ' + [2.5, 50, 97.5][Math.floor(sticker.index / 6)] + '%';
             }
             art.setAttribute('role', 'img');
             art.setAttribute('aria-label', unlocked ? sticker.name : 'まだ集めていないシール');
