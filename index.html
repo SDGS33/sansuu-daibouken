@@ -1167,13 +1167,19 @@
                 art.style.transform = 'scaleY(0.838)';
             }
             if (sticker.sheet) {
-                art.style.backgroundImage = sticker.advanced
-                    ? `url('./assets/advanced_stickers_0${sticker.sheet}${sticker.sheet === 6 ? '_v2' : ''}.jpg')`
+                // Gemini修正版は金縁の位置だけ使用し、通常シールは元画像のままにする。
+                const advancedThick = sticker.sheet === 4
+                    || (sticker.sheet === 5 && sticker.index < 3)
+                    || (sticker.sheet === 8 && sticker.index >= 3)
+                    || sticker.sheet === 9;
+                const stickerAsset = sticker.advanced
+                    ? `advanced_stickers_0${sticker.sheet}${advancedThick ? '_thick.jpeg' : sticker.sheet === 6 ? '_v2.jpg' : '.jpg'}`
                     : sticker.junior
-                    ? `url('./assets/junior_stickers_0${sticker.sheet}.jpg')`
+                    ? `junior_stickers_0${sticker.sheet}${sticker.sheet === 9 && sticker.index < 2 ? '_thick.jpeg' : '.jpg'}`
                     : sticker.gold
-                    ? `url('./assets/gold_stickers_0${sticker.sheet}.jpg')`
-                    : `url('./assets/gemini_stickers_0${sticker.sheet}.jpg')`;
+                    ? `gold_stickers_0${sticker.sheet}${sticker.sheet === 4 && sticker.index < 2 ? '_thick.jpeg' : '.jpg'}`
+                    : `gemini_stickers_0${sticker.sheet}.jpg`;
+                art.style.backgroundImage = `url('./assets/${stickerAsset}')`;
                 art.style.backgroundPosition = `${(sticker.index % 3) * 50}% ${Math.floor(sticker.index / 3) * 100}%`;
             } else {
                 art.style.backgroundPosition = ((sticker.index % 6) * 20) + '% ' + [2.5, 50, 97.5][Math.floor(sticker.index / 6)] + '%';
