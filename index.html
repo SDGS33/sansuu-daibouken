@@ -516,6 +516,12 @@
         .sticker-card.gold-sticker.locked { filter: none; opacity: .76; }
         .sticker-card.gold-sticker.locked .sticker-art { filter: grayscale(1) brightness(1.08); }
         .sticker-art.gold-art { aspect-ratio: 1 / 1; background-size: 300% 200%; background-color: white; }
+        .sticker-art.advanced-art { aspect-ratio: 1 / 1; background-size: 300% 200%; background-color: #fff; }
+        .sticker-art.junior-art { aspect-ratio: 1 / 1; background-size: 300% 200%; background-color: #fff; }
+        #sticker-grade-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 auto 16px; max-width: 720px; }
+        .sticker-grade-tab { padding: 10px 4px; border: 2px solid #e8b963; border-radius: 14px; background: #fff6dc; color: #713424; font-weight: 900; box-shadow: 0 3px 0 #d6954f; }
+        .sticker-grade-tab.active { background: #f177a7; color: #fff; border-color: #d74787; box-shadow: 0 3px 0 #ac3267; }
+        .sticker-grade-tab.advanced-tab.active { background: #7660ca; border-color: #5940a8; box-shadow: 0 3px 0 #47318d; }
         .sticker-section-title { grid-column: 1 / -1; color: #88521b; font-size: 1.2rem; font-weight: 900; padding: 12px 4px 2px; }
         #reward-sticker { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; }
         #reward-sticker .sticker-card { width: min(180px, 42vw); animation: none; }
@@ -526,6 +532,20 @@
         #hissan-area { --hissan-column: 1.2em; }
         #hissan-num1, #hissan-num2, #hissan-ans { letter-spacing: 0; font-variant-numeric: tabular-nums; }
         #hissan-area .digit-box, #hissan-ans .answer-digit { box-sizing: border-box; flex: 0 0 var(--hissan-column); width: var(--hissan-column); margin: 0; }
+        #multiplication-area { width: 100%; overflow-x: auto; padding: 6px 0 14px; }
+        #multiplication-area:not(.hidden) { display: flex; justify-content: center; }
+        .multiplication-board { --mul-cell: clamp(37px, 8.3vw, 59px); width: max-content; max-width: 100%; color: #284738; font-family: 'M PLUS Rounded 1c', sans-serif; font-size: clamp(30px, 7.5vw, 51px); font-weight: 900; font-variant-numeric: tabular-nums; }
+        .multiplication-row { display: grid; grid-template-columns: var(--mul-cell) repeat(var(--mul-columns), var(--mul-cell)); align-items: center; min-height: 1.45em; }
+        .multiplication-cell { display: flex; align-items: center; justify-content: center; height: 1.38em; border-left: 2px dashed #80bce0; box-sizing: border-box; }
+        .multiplication-cell:last-child { border-right: 2px dashed #80bce0; }
+        .multiplication-op { display: flex; align-items: center; justify-content: center; color: #a44938; }
+        .multiplication-rule { height: 0; margin-left: var(--mul-cell); border-top: 4px solid #8b4b37; }
+        .multiplication-work .multiplication-cell, .multiplication-result .multiplication-cell { color: #8c432e; }
+        .multiplication-result .multiplication-cell { color: #d95c28; }
+        .multiplication-cell.is-current { background: #ffe774; border: 3px solid #087d75; border-radius: 8px; box-shadow: 0 0 0 4px #fff0a9; }
+        .multiplication-cell.is-filled { color: #244d3c; }
+        .multiplication-result .multiplication-cell.is-filled { color: #d95c28; }
+        .multiplication-step-label { font-size: clamp(13px, 3.5vw, 17px); color: #79533b; text-align: center; margin-top: 8px; font-weight: 900; }
         .place-value tfoot th, .place-value tfoot td { background: #fff6d7; border-top: 3px solid #aa5a37; }
         .place-value tfoot th { color: #8c3b29; }
         .place-value .decimal-result-cell { height: 42px; padding: 2px; }
@@ -723,6 +743,12 @@
                             </div>
                             <div id="hissan-ans" class="flex justify-end pr-2 md:pr-4 text-blue-600 h-20 md:h-24 min-w-[150px] tracking-widest"></div>
                         </div>
+                        <div id="multiplication-area" class="hidden" role="group" aria-label="掛け算の筆算。途中の計算を上から順に入力します">
+                            <div>
+                                <div id="multiplication-board" class="multiplication-board"></div>
+                                <div id="multiplication-step-label" class="multiplication-step-label" aria-live="polite"></div>
+                            </div>
+                        </div>
                         
                         <!-- 横式 -->
                         <div id="yoko-area" class="hidden text-4xl md:text-7xl math-text text-gray-800 text-center w-full px-2">
@@ -826,6 +852,8 @@
             </div>
             
             <div class="flex-1 bg-white rounded-3xl border-4 border-yellow-200 p-6 md:p-10 overflow-y-auto max-w-5xl mx-auto w-full">
+                <p class="text-center font-bold text-[#713424] mb-3">どの学年も27まい！ ぜんぶで162まいのシールを集めよう！</p>
+                <div id="sticker-grade-tabs" aria-label="学年を選ぶ"></div>
                 <p id="sticker-progress" class="text-center font-bold text-[#713424] mb-4"></p>
                 <div id="sticker-grid" class="grid gap-3"></div>
                 <div id="no-sticker-msg" class="text-center text-gray-400 font-bold text-xl md:text-2xl mt-20 hidden">
@@ -933,6 +961,9 @@
         let hissanInputs = [];   // [0]が一の位
         let hissanFocus = 0;     // 現在の入力桁
         let hissanMaxFocus = 0;  // 答えの最大桁数
+        let multiplicationRows = [];
+        let multiplicationSequence = [];
+        let multiplicationFocus = 0;
         
         let currentOptions = [];
         let num1, num2, currentOpStr;
@@ -1062,13 +1093,78 @@
             ['ミミの王冠',4,0], ['みんなの大冒険',4,1]
         ].map(([name, sheet, index], i) => ({ id: `gold-${String(i + 1).padStart(2, '0')}`, name, sheet, index, gold: true }));
 
+        // 5・6年生専用の新作54枚。6枚ずつの画像9枚を等間隔に切り出して表示する。
+        const advancedStickerNames = [
+            'ミミの水晶洞窟','トトの星の天文台','リリーの虹色花畑','光る図形の橋','リリーの光の球','3人の魔法の森',
+            'ミミの空の船','トトの浮かぶ迷路','リリーの空の虹','花の時計','トトの貝がら調査','3人の海の旅',
+            'ミミの古い地図','トトの立体の街','リリーのオーロラ','山頂の望遠鏡','リリーの月ランタン','3人の海底ドーム',
+            'ミミの黄金王冠','トトの金色星図','リリーの黄金の花','黄金の宝箱','金色のトンボ','金の水晶宮',
+            'ミミの黄金飛行船','トトの黄金天球','リリーの金の蝶冠',
+            'ミミの星の橋','トトの空の地図','リリーの星座','雲の街を探検','トトの歯車の塔','リリーの月夜の湖',
+            'ミミとリリーの光る橋','トトの光るプリズム','3人の浮島','ミミの星の帆船','トトの古い砂時計','リリーの庭園の門',
+            'ミミとトトの星地図','リリーと蝶の森','3人の虹の橋','鏡の庭園','トトとリリーの丸い池','3人の宝石洞窟',
+            'ミミの黄金羅針盤','トトの黄金天文台','リリーの花の王冠','ミミの金色飛行船','トトの黄金天球儀','リリーの金色の月',
+            '黄金のひみつの鍵','金色の蝶の舞','3人の冒険の王冠'
+        ];
+        const advancedStickerCatalog = advancedStickerNames.map((name, i) => ({
+            id: `advanced-${String(i + 1).padStart(2, '0')}`,
+            name,
+            sheet: Math.floor(i / 6) + 1,
+            index: i % 6,
+            advanced: true,
+            grade: i < 27 ? 5 : 6,
+            gold: (i >= 18 && i < 27) || i >= 45
+        }));
+        // 1〜4年生に追加する54枚。通常38枚と、満点2回連続でもらえる金色16枚。
+        const juniorNormalNames = [
+            'ミミのどんぐり数え','トトの数字石の小道','リリーの花の束','ふたりのつみき','リリーの10このビーズ','みんなの数の木',
+            'ミミの花時計','トトの長さしらべ','みんなの虹の橋',
+            'ミミのかけ算花壇','トトの位取りつみき','リリーの図形のちょう','トトの月の時計','ミミの木の実分け','リリーの形さがし',
+            'みんなの測量地図','ミミの100歩の道','トトの森のグラフ',
+            'ミミのかけ算の森','トトの分数のケーキ','リリーの円の花畑','みんなの重さくらべ','ミミの大きな時間','トトの表づくり',
+            'リリーの小数の星','ミミの長さの橋','トトの立体の塔','みんなの面積の庭',
+            'ミミの小数の旅','トトの角度の地図','リリーの図形の宝石','みんなの割り算の泉','ミミの折れ線の山','トトの面積の畑',
+            'リリーの立体の森','みんなの計算の橋','ミミの探検ノート','トトの理科のような算数発見'
+        ];
+        const juniorGoldNames = [
+            'ミミの金色どんぐり','トトの黄金の数字石','リリーの金色花冠','みんなの金の数の木',
+            'ミミの黄金の花時計','トトの金色つみき','リリーの金色の蝶','みんなの黄金の地図',
+            'ミミの黄金のかけ算','トトの金色の星表','リリーの黄金の円','みんなの金色トロフィー',
+            'ミミの黄金の羅針盤','トトの金色の図形','リリーの金色の宝石','みんなの黄金の冒険'
+        ];
+        const juniorStickerCatalog = juniorNormalNames.map((name, i) => ({
+            id: `junior-${String(i + 1).padStart(2, '0')}`, name,
+            sheet: Math.floor(i / 6) + 1, index: i % 6, junior: true,
+            grade: i < 9 ? 1 : i < 18 ? 2 : i < 28 ? 3 : 4
+        })).concat(juniorGoldNames.map((name, i) => {
+            const position = i + juniorNormalNames.length;
+            return {
+                id: `junior-${String(position + 1).padStart(2, '0')}`, name,
+                sheet: Math.floor(position / 6) + 1, index: position % 6,
+                junior: true, grade: Math.floor(i / 4) + 1, gold: true
+            };
+        }));
+        const gradeStickerCatalogs = Object.fromEntries([1, 2, 3, 4, 5, 6].map(g => [g, []]));
+        [9, 9, 8, 8].reduce((start, count, i) => {
+            gradeStickerCatalogs[i + 1].push(...stickerCatalog.slice(start, start + count));
+            return start + count;
+        }, 0);
+        for (let g = 1; g <= 4; g++) gradeStickerCatalogs[g].push(...goldStickerCatalog.slice((g - 1) * 5, g * 5));
+        for (let g = 1; g <= 4; g++) gradeStickerCatalogs[g].push(...juniorStickerCatalog.filter(sticker => sticker.grade === g));
+        gradeStickerCatalogs[5] = advancedStickerCatalog.filter(sticker => sticker.grade === 5);
+        gradeStickerCatalogs[6] = advancedStickerCatalog.filter(sticker => sticker.grade === 6);
+
         function makeStickerCard(sticker, unlocked) {
             const card = document.createElement('div');
             card.className = `sticker-card${sticker.gold ? ' gold-sticker' : ''}${unlocked ? '' : ' locked'}`;
             const art = document.createElement('div');
-            art.className = `sticker-art${sticker.gold ? ' gold-art' : sticker.sheet ? ' gemini-art' : ''}`;
+            art.className = `sticker-art${sticker.advanced ? ' advanced-art' : sticker.junior ? ' junior-art' : sticker.gold ? ' gold-art' : sticker.sheet ? ' gemini-art' : ''}`;
             if (sticker.sheet) {
-                art.style.backgroundImage = sticker.gold
+                art.style.backgroundImage = sticker.advanced
+                    ? `url('./assets/advanced_stickers_0${sticker.sheet}${sticker.sheet === 6 ? '_v2' : ''}.jpg')`
+                    : sticker.junior
+                    ? `url('./assets/junior_stickers_0${sticker.sheet}.jpg')`
+                    : sticker.gold
                     ? `url('./assets/gold_stickers_0${sticker.sheet}.jpg')`
                     : `url('./assets/gemini_stickers_0${sticker.sheet}.jpg')`;
                 art.style.backgroundPosition = `${(sticker.index % 3) * 50}% ${Math.floor(sticker.index / 3) * 100}%`;
@@ -1086,7 +1182,7 @@
         }
 
         function takeNewSticker(gold = false) {
-            const catalog = gold ? goldStickerCatalog : stickerCatalog;
+            const catalog = gradeStickerCatalogs[grade].filter(sticker => Boolean(sticker.gold) === gold);
             const remaining = catalog.filter(sticker => !myStickers.includes(sticker.id));
             if (!remaining.length) return null;
             const chosen = remaining[Math.floor(Math.random() * remaining.length)];
@@ -1097,7 +1193,7 @@
             try {
                 const saved = JSON.parse(localStorage.getItem('mathStickers') || '[]');
                 if (!Array.isArray(saved)) return [];
-                const validIds = new Set([...stickerCatalog, ...goldStickerCatalog].map(sticker => sticker.id));
+                const validIds = new Set([...stickerCatalog, ...goldStickerCatalog, ...juniorStickerCatalog, ...advancedStickerCatalog].map(sticker => sticker.id));
                 const cleaned = [...new Set(saved.filter(id => validIds.has(id)))];
                 if (cleaned.length !== saved.length) {
                     try { localStorage.setItem('mathStickers', JSON.stringify(cleaned)); } catch (_) { /* 保存できなくても表示は続けられます */ }
@@ -1113,8 +1209,12 @@
         }
 
         let myStickers = loadStickers();
-        const perfectStreakKey = 'mathAdventurePerfectStreakV1';
-        let perfectStreak = localStorage.getItem(perfectStreakKey) === '1' ? 1 : 0;
+        const perfectStreakKey = 'mathAdventurePerfectStreakByGradeV2';
+        let perfectStreakByGrade = {};
+        try {
+            const savedStreak = JSON.parse(localStorage.getItem(perfectStreakKey) || '{}');
+            if (savedStreak && typeof savedStreak === 'object') perfectStreakByGrade = savedStreak;
+        } catch (_) {}
 
         // 画面切り替え関数
         function showScreen(screenId) {
@@ -1155,6 +1255,22 @@
             return currentTopic === 'decimal' || (!currentTopic && currentOpStr !== '÷');
         }
 
+        function usesMultiplicationBoard() {
+            return !currentTopic && currentOpStr === '×' && isHissan && String(num2).length >= 2;
+        }
+
+        function prepareMultiplicationBoard() {
+            multiplicationRows = String(num2).split('').reverse().map((digit, place) => {
+                const product = num1 * Number(digit);
+                return { digit: Number(digit), place, product, values: Array(String(product).length).fill('') };
+            });
+            multiplicationSequence = multiplicationRows.flatMap((row, rowIndex) =>
+                row.values.map((_, slot) => ({ rowIndex, slot }))
+            );
+            for (let slot = 0; slot <= hissanMaxFocus; slot++) multiplicationSequence.push({ rowIndex: -1, slot });
+            multiplicationFocus = 0;
+        }
+
         function inputPlaceName(index) {
             const decimalPlaces = inputDecimalPlaces();
             if (index < decimalPlaces) return ['十分の一の位', '百分の一の位'][decimalPlaces - index - 1];
@@ -1173,6 +1289,12 @@
             hissanMaxFocus = integerDigits + inputDecimalPlaces() - 1;
             hissanInputs = Array.from({ length: hissanMaxFocus + 1 }, () => '');
             hissanFocus = inputStartsFromSmallest() ? 0 : hissanMaxFocus;
+            if (usesMultiplicationBoard()) prepareMultiplicationBoard();
+            else {
+                multiplicationRows = [];
+                multiplicationSequence = [];
+                multiplicationFocus = 0;
+            }
             currentInput = '';
         }
 
@@ -1194,6 +1316,43 @@
                 html += `<span class="digit-box answer-digit${current}" aria-label="${inputPlaceName(i)} ${value || '空欄'}">${value || '&nbsp;'}</span>`;
             }
             return html;
+        }
+
+        function multiplicationRowHTML(number, shift = 0, values = null, rowIndex = null, operator = '') {
+            const width = String(currentAns).length;
+            const digitCount = String(number).length;
+            const active = multiplicationSequence[multiplicationFocus];
+            let cells = `<span class="multiplication-op" aria-hidden="true">${operator}</span>`;
+            for (let column = 0; column < width; column++) {
+                const slot = width - 1 - shift - column;
+                const inNumber = slot >= 0 && slot < digitCount;
+                const value = inNumber ? (values ? values[slot] : String(number)[digitCount - 1 - slot]) : '';
+                const current = values && inNumber && active?.rowIndex === rowIndex && active.slot === slot;
+                const filled = values && value !== '';
+                const label = values && inNumber ? ` aria-label="${rowIndex === -1 ? '最後の答え' : `${rowIndex + 1}行目`}の${inputPlaceName(slot + shift)} ${value || '空欄'}"` : '';
+                cells += `<span class="multiplication-cell${current ? ' is-current' : ''}${filled ? ' is-filled' : ''}"${label}>${value || '&nbsp;'}</span>`;
+            }
+            return `<div class="multiplication-row${rowIndex === -1 ? ' multiplication-result' : values ? ' multiplication-work' : ''}">${cells}</div>`;
+        }
+
+        function renderMultiplicationBoard() {
+            const board = document.getElementById('multiplication-board');
+            board.style.setProperty('--mul-columns', String(currentAns).length);
+            let html = multiplicationRowHTML(num1);
+            html += multiplicationRowHTML(num2, 0, null, null, '×');
+            html += '<div class="multiplication-rule"></div>';
+            multiplicationRows.forEach((row, index) => {
+                html += multiplicationRowHTML(row.product, row.place, row.values, index, ['①', '②', '③'][index] || '');
+            });
+            html += '<div class="multiplication-rule"></div>';
+            html += multiplicationRowHTML(currentAns, 0, hissanInputs, -1, '＝');
+            board.innerHTML = html;
+            const active = multiplicationSequence[multiplicationFocus];
+            document.getElementById('multiplication-step-label').innerText = !active
+                ? 'できたよ！「OK」を押してね'
+                : active.rowIndex === -1
+                    ? '最後に、途中の数を足して答えを右から入れてね'
+                    : `${active.rowIndex + 1}行目：下の${multiplicationRows[active.rowIndex].digit}をかけて、右から入れてね`;
         }
 
         function divisionWorkRow(kind, value, endColumn, lineStart = 0) {
@@ -2349,8 +2508,17 @@
             document.getElementById('topic-answer-area').classList.add('hidden');
             document.getElementById('decimal-key').classList.add('hidden');
             const division = currentOpStr === '÷';
+            const multiplication = usesMultiplicationBoard();
             document.getElementById('division-area').classList.toggle('hidden', !division);
+            document.getElementById('multiplication-area').classList.toggle('hidden', !multiplication);
             if (division) {
+                document.getElementById('hissan-area').classList.add('hidden');
+                document.getElementById('hissan-area').classList.remove('flex');
+                document.getElementById('yoko-area').classList.add('hidden');
+                updateDisplay();
+                return;
+            }
+            if (multiplication) {
                 document.getElementById('hissan-area').classList.add('hidden');
                 document.getElementById('hissan-area').classList.remove('flex');
                 document.getElementById('yoko-area').classList.add('hidden');
@@ -2381,6 +2549,7 @@
         function displayTopicQuestion() {
             renderTopicVisual('topic-visual');
             document.getElementById('division-area').classList.add('hidden');
+            document.getElementById('multiplication-area').classList.add('hidden');
             document.getElementById('hissan-area').classList.add('hidden');
             document.getElementById('hissan-area').classList.remove('flex');
             document.getElementById('yoko-area').classList.add('hidden');
@@ -2473,6 +2642,16 @@
                     updateDisplay();
                     return;
                 }
+                if (usesMultiplicationBoard()) {
+                    const target = multiplicationSequence[multiplicationFocus];
+                    if (!target) return;
+                    if (target.rowIndex === -1) hissanInputs[target.slot] = num.toString();
+                    else multiplicationRows[target.rowIndex].values[target.slot] = num.toString();
+                    multiplicationFocus++;
+                    currentInput = enteredSlotValue();
+                    updateDisplay();
+                    return;
+                }
                 if (hissanInputs[hissanFocus] !== '') return;
                 hissanInputs[hissanFocus] = num.toString();
                 if (inputStartsFromSmallest() && hissanFocus < hissanMaxFocus) hissanFocus++;
@@ -2499,6 +2678,15 @@
                     updateDisplay();
                     return;
                 }
+                if (usesMultiplicationBoard()) {
+                    if (multiplicationFocus === 0) return;
+                    const target = multiplicationSequence[--multiplicationFocus];
+                    if (target.rowIndex === -1) hissanInputs[target.slot] = '';
+                    else multiplicationRows[target.rowIndex].values[target.slot] = '';
+                    currentInput = enteredSlotValue();
+                    updateDisplay();
+                    return;
+                }
                 if (hissanInputs[hissanFocus] !== '') hissanInputs[hissanFocus] = '';
                 else if (inputStartsFromSmallest() && hissanFocus > 0) hissanInputs[--hissanFocus] = '';
                 else if (!inputStartsFromSmallest() && hissanFocus < hissanMaxFocus) hissanInputs[++hissanFocus] = '';
@@ -2516,6 +2704,14 @@
                 document.getElementById('topic-answer-value').innerHTML = fractionFieldHTML(fractionNumeratorInput, String(fractionAnswerNumerator).length, fractionInputPart === 'numerator' && !complete, '分子');
                 document.getElementById('topic-answer-suffix').innerHTML = fractionFieldHTML(fractionDenominatorInput, String(fractionAnswerDenominator).length, fractionInputPart === 'denominator' && !complete, '分母');
                 document.getElementById('topic-answer-area').setAttribute('aria-label', `分子 ${fractionNumeratorInput || '空欄'}、分母 ${fractionDenominatorInput || '空欄'}`);
+                return;
+            }
+            if (usesMultiplicationBoard()) {
+                renderMultiplicationBoard();
+                const hint = document.getElementById('hissan-input-hint');
+                if (hint) hint.innerText = multiplicationFocus === multiplicationSequence.length
+                    ? '途中の計算と答えが入ったよ。「OK」を押してね！'
+                    : '色のついた桁に、右から順に入れてね';
                 return;
             }
             const slots = answerSlotHTML();
@@ -2551,6 +2747,23 @@
 
         function checkNormalAnswer() {
             if (answerLocked) return;
+            if (usesMultiplicationBoard()) {
+                if (multiplicationFocus !== multiplicationSequence.length) return;
+                const rowsCorrect = multiplicationRows.every(row =>
+                    Number([...row.values].reverse().join('')) === row.product
+                );
+                const answerCorrect = Number(enteredSlotValue()) === currentAns;
+                if (rowsCorrect && answerCorrect) {
+                    if (!hasMistaked) score += 10;
+                    showCorrectFeedback();
+                } else {
+                    playSound('wrong');
+                    hasMistaked = true;
+                    answerLocked = true;
+                    showExplanation();
+                }
+                return;
+            }
             if (currentTopic === 'fraction') {
                 if (!fractionNumeratorInput || !fractionDenominatorInput) return;
                 const numerator = Number(fractionNumeratorInput), denominator = Number(fractionDenominatorInput);
@@ -2619,7 +2832,9 @@
         }
 
         function showExplanation() {
-            document.getElementById('explanation-text').innerHTML = currentTopic
+            document.getElementById('explanation-text').innerHTML = usesMultiplicationBoard()
+                ? '途中のかけ算と<br>最後の足し算を見直そう！'
+                : currentTopic
                 ? `もういちど もんだいを<br>よんでみよう！`
                 : `もういちど けいさん<br>してみよう！`;
             document.getElementById('explanation-modal').classList.remove('hidden');
@@ -2644,6 +2859,7 @@
             fractionInputPart = 'denominator';
             for (let i = 0; i <= hissanMaxFocus; i++) hissanInputs[i] = "";
             hissanFocus = inputStartsFromSmallest() ? 0 : hissanMaxFocus;
+            if (usesMultiplicationBoard()) prepareMultiplicationBoard();
             updateDisplay();
         }
 
@@ -2658,11 +2874,12 @@
             const rewardArea = document.getElementById('sticker-reward-area');
             
             const perfect = score === maxScore;
-            const goldTurn = perfect && perfectStreak === 1;
-            perfectStreak = perfect ? (goldTurn ? 0 : 1) : 0;
-            try { localStorage.setItem(perfectStreakKey, String(perfectStreak)); } catch (_) {}
-            msgEl.innerText = goldTurn ? '2回連続パーフェクト！ 金色シールを1まいゲット！ ✨'
-                : perfect ? 'パーフェクト！ シールを1まいゲット！ つぎも満点なら金色！ ✨'
+            const goldTurn = perfect && perfectStreakByGrade.lastGrade === grade && perfectStreakByGrade[grade] === 1;
+            perfectStreakByGrade[grade] = perfect ? (goldTurn ? 0 : 1) : 0;
+            perfectStreakByGrade.lastGrade = grade;
+            try { localStorage.setItem(perfectStreakKey, JSON.stringify(perfectStreakByGrade)); } catch (_) {}
+            msgEl.innerText = goldTurn ? `${grade}年生で2回連続パーフェクト！ 金色シールを1まいゲット！ ✨`
+                : perfect ? `${grade}年生でパーフェクト！ シールを1まいゲット！ つぎも満点なら金色！ ✨`
                 : score >= maxScore * 0.8 ? 'すごい！ あとすこしで パーフェクト！'
                 : 'がんばったね！ パーフェクトで シールをゲットしよう！';
             msgEl.className = goldTurn ? 'text-amber-600 font-bold text-2xl mb-6' : perfect ? 'text-green-500 font-bold text-2xl mb-6' : 'text-orange-500 font-bold text-2xl mb-6';
@@ -2674,7 +2891,11 @@
                 saveStickers();
                 rewardArea.classList.remove('hidden');
             } else if (perfect) {
-                msgEl.innerText = goldTurn ? '金色シールを ぜんぶ あつめたね！ ✨' : 'ふつうのシールを ぜんぶ あつめたね！ ✨';
+                const gradeItems = gradeStickerCatalogs[grade];
+                const gradeComplete = gradeItems.every(sticker => myStickers.includes(sticker.id));
+                msgEl.innerText = gradeComplete ? `${grade}年生のシールを ぜんぶ あつめたね！ ✨`
+                    : goldTurn ? `${grade}年生の金色シールを ぜんぶ あつめたね！ ✨`
+                    : `${grade}年生のふつうのシールは ぜんぶ あつめたね！ つぎも満点なら金色！ ✨`;
                 rewardArea.classList.add('hidden');
             } else {
                 rewardArea.classList.add('hidden');
@@ -2685,25 +2906,40 @@
             playSound('click');
             if(fromScreen) previousScreen = fromScreen;
             showScreen('sticker-screen');
+            renderGradeStickers(grade);
+        }
 
+        function renderGradeStickers(selectedGrade) {
+            const tabs = document.getElementById('sticker-grade-tabs');
+            tabs.innerHTML = '';
+            for (let g = 1; g <= 6; g++) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = `sticker-grade-tab${g === selectedGrade ? ' active' : ''}${g >= 5 ? ' advanced-tab' : ''}`;
+                button.setAttribute('aria-pressed', String(g === selectedGrade));
+                const gathered = gradeStickerCatalogs[g].filter(sticker => myStickers.includes(sticker.id)).length;
+                button.textContent = `${g}年生 ${gathered}/${gradeStickerCatalogs[g].length}`;
+                button.onclick = () => { playSound('click'); renderGradeStickers(g); };
+                tabs.appendChild(button);
+            }
             const grid = document.getElementById('sticker-grid');
             grid.innerHTML = '';
-            
-            const allStickers = [...stickerCatalog, ...goldStickerCatalog];
+            const allStickers = gradeStickerCatalogs[selectedGrade];
             const collected = allStickers.filter(sticker => myStickers.includes(sticker.id)).length;
-            const goldCollected = goldStickerCatalog.filter(sticker => myStickers.includes(sticker.id)).length;
-            document.getElementById('sticker-progress').innerText = `${collected} / ${allStickers.length} まい（金色 ${goldCollected} / ${goldStickerCatalog.length}）`;
+            const goldStickers = allStickers.filter(sticker => sticker.gold);
+            const goldCollected = goldStickers.filter(sticker => myStickers.includes(sticker.id)).length;
+            document.getElementById('sticker-progress').innerText = `${selectedGrade}年生のシール ${collected} / ${allStickers.length} まい（金色 ${goldCollected} / ${goldStickers.length}）`;
             document.getElementById('no-sticker-msg').classList.add('hidden');
             const normalHeading = document.createElement('div');
             normalHeading.className = 'sticker-section-title';
             normalHeading.innerText = 'ふつうのシール';
             grid.appendChild(normalHeading);
-            stickerCatalog.forEach(sticker => grid.appendChild(makeStickerCard(sticker, myStickers.includes(sticker.id))));
+            allStickers.filter(sticker => !sticker.gold).forEach(sticker => grid.appendChild(makeStickerCard(sticker, myStickers.includes(sticker.id))));
             const goldHeading = document.createElement('div');
             goldHeading.className = 'sticker-section-title';
             goldHeading.innerText = '✨ 金色シール（満点2回連続）';
             grid.appendChild(goldHeading);
-            goldStickerCatalog.forEach(sticker => grid.appendChild(makeStickerCard(sticker, myStickers.includes(sticker.id))));
+            goldStickers.forEach(sticker => grid.appendChild(makeStickerCard(sticker, myStickers.includes(sticker.id))));
         }
 
         function closeStickers() {
